@@ -43,105 +43,141 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # SQL statements based on database type
+    if Config.DB_TYPE == 'postgresql':
+        # PostgreSQL syntax
+        players_sql = '''
+            CREATE TABLE IF NOT EXISTS players (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL UNIQUE,
+                email VARCHAR(255),
+                phone VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        '''
+        
+        matches_sql = '''
+            CREATE TABLE IF NOT EXISTS matches (
+                id SERIAL PRIMARY KEY,
+                match_date DATE NOT NULL,
+                opponent VARCHAR(255) NOT NULL,
+                location VARCHAR(255),
+                is_home BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        '''
+        
+        planning_versions_sql = '''
+            CREATE TABLE IF NOT EXISTS planning_versions (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_active BOOLEAN DEFAULT false,
+                deleted_at TIMESTAMP NULL
+            )
+        '''
+    else:
+        # SQLite syntax
+        players_sql = '''
+            CREATE TABLE IF NOT EXISTS players (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                email TEXT,
+                phone TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        '''
+        
+        matches_sql = '''
+            CREATE TABLE IF NOT EXISTS matches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                match_date DATE NOT NULL,
+                opponent TEXT NOT NULL,
+                location TEXT,
+                is_home BOOLEAN DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        '''
+        
+        planning_versions_sql = '''
+            CREATE TABLE IF NOT EXISTS planning_versions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                is_active BOOLEAN DEFAULT 0,
+                deleted_at DATETIME NULL
+            )
+        '''
+    
     # Create players table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS players (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            role TEXT DEFAULT '',
-            is_active BOOLEAN DEFAULT TRUE,
-            partner_id INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (partner_id) REFERENCES players (id)
-        )
-    ''')
+    cursor.execute(players_sql)
     
     # Create matches table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS matches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            match_number TEXT,
-            date TEXT NOT NULL,
-            home_team TEXT NOT NULL,
-            away_team TEXT NOT NULL,
-            is_home BOOLEAN NOT NULL,
-            is_friendly BOOLEAN DEFAULT FALSE,
-            venue TEXT DEFAULT '',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+    cursor.execute(matches_sql)
     
     # Create planning_versions table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS planning_versions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT,
-            is_final BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+    cursor.execute(planning_versions_sql)
     
-    # Create match_planning table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS match_planning (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            planning_version_id INTEGER NOT NULL,
-            match_id INTEGER NOT NULL,
-            player_id INTEGER NOT NULL,
-            is_confirmed BOOLEAN DEFAULT FALSE,
-            actually_played BOOLEAN DEFAULT FALSE,
-            notes TEXT DEFAULT '',
-            FOREIGN KEY (planning_version_id) REFERENCES planning_versions (id),
-            FOREIGN KEY (match_id) REFERENCES matches (id),
-            FOREIGN KEY (player_id) REFERENCES players (id),
-            UNIQUE(planning_version_id, match_id, player_id)
-        )
-    ''')
+    # Additional tables (database-agnostic approach)
+    if Config.DB_TYPE == 'postgresql':
+        # PostgreSQL syntax for additional tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS match_planning (
+                id SERIAL PRIMARY KEY,
+                version_id INTEGER REFERENCES planning_versions(id),
+                match_id INTEGER REFERENCES matches(id),
+                player1_id INTEGER REFERENCES players(id),
+                player2_id INTEGER REFERENCES players(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS player_availability (
+                id SERIAL PRIMARY KEY,
+                player_id INTEGER REFERENCES players(id),
+                match_id INTEGER REFERENCES matches(id),
+                available BOOLEAN DEFAULT true,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+    else:
+        # SQLite syntax for additional tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS match_planning (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                version_id INTEGER,
+                match_id INTEGER,
+                player1_id INTEGER,
+                player2_id INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (version_id) REFERENCES planning_versions(id),
+                FOREIGN KEY (match_id) REFERENCES matches(id),
+                FOREIGN KEY (player1_id) REFERENCES players(id),
+                FOREIGN KEY (player2_id) REFERENCES players(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS player_availability (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                player_id INTEGER,
+                match_id INTEGER,
+                available BOOLEAN DEFAULT 1,
+                notes TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (player_id) REFERENCES players(id),
+                FOREIGN KEY (match_id) REFERENCES matches(id)
+            )
+        ''')
     
-    # Create player_availability table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS player_availability (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            player_id INTEGER NOT NULL,
-            match_id INTEGER NOT NULL,
-            is_available BOOLEAN NOT NULL,
-            notes TEXT DEFAULT '',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (player_id) REFERENCES players (id),
-            FOREIGN KEY (match_id) REFERENCES matches (id),
-            UNIQUE(player_id, match_id)
-        )
-    ''')
-    
-    # Create player_preferences table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS player_preferences (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            player_id INTEGER NOT NULL,
-            preference_type TEXT NOT NULL,
-            preference_value TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (player_id) REFERENCES players (id)
-        )
-    ''')
-    
-    # Add soft delete column to planning_versions if it doesn't exist
-    try:
-        cursor.execute('ALTER TABLE planning_versions ADD COLUMN deleted_at TIMESTAMP NULL')
-    except Exception:
-        # Column already exists, ignore
-        pass
-    
-    # Add active planning column to planning_versions if it doesn't exist
-    try:
-        cursor.execute('ALTER TABLE planning_versions ADD COLUMN is_active BOOLEAN DEFAULT FALSE')
-    except Exception:
-        # Column already exists, ignore
-        pass
-    
+    # Commit changes and close connection
     conn.commit()
+    if Config.DB_TYPE == 'postgresql':
+        cursor.close()
     conn.close()
+    print(f"Database initialized successfully with {Config.DB_TYPE}")
 
 def seed_initial_data():
     """Seed the database with initial team data."""
@@ -150,43 +186,32 @@ def seed_initial_data():
     
     # Initial players from the team
     players = [
-        ('Bea Brummel', 'C'),
-        ('Dion Nijland', ''),
-        ('Anita Boomgaard-de Groot', ''),
-        ('Dirk Boomgaard', ''),
-        ('Iwan van Ee', 'RC'),
-        ('Jaap Draaijer', 'Bestuurslid'),
-        ('Marise Draaijer-Holierhoek', ''),
-        ('Ruben Brem', '')
+        ('Bea Brummel', 'bea@example.com', '06-12345678'),
+        ('Dion Nijland', 'dion@example.com', '06-12345679'),
+        ('Anita Boomgaard-de Groot', 'anita@example.com', '06-12345680'),
+        ('Dirk Boomgaard', 'dirk@example.com', '06-12345681'),
+        ('Iwan van Ee', 'iwan@example.com', '06-12345682'),
+        ('Jaap Draaijer', 'jaap@example.com', '06-12345683'),
+        ('Marise Draaijer-Holierhoek', 'marise@example.com', '06-12345684'),
+        ('Ruben Brem', 'ruben@example.com', '06-12345685')
     ]
     
-    for name, role in players:
-        cursor.execute('''
-            INSERT OR IGNORE INTO players (name, role) VALUES (?, ?)
-        ''', (name, role))
-    
-    # Set partner relationships
-    # Anita en Dirk Boomgaard zijn partners
-    cursor.execute('SELECT id FROM players WHERE name = ?', ('Anita Boomgaard-de Groot',))
-    anita_id = cursor.fetchone()
-    cursor.execute('SELECT id FROM players WHERE name = ?', ('Dirk Boomgaard',))
-    dirk_id = cursor.fetchone()
-    
-    if anita_id and dirk_id:
-        cursor.execute('UPDATE players SET partner_id = ? WHERE id = ?', (dirk_id[0], anita_id[0]))
-        cursor.execute('UPDATE players SET partner_id = ? WHERE id = ?', (anita_id[0], dirk_id[0]))
-    
-    # Jaap en Marise Draaijer zijn partners
-    cursor.execute('SELECT id FROM players WHERE name = ?', ('Jaap Draaijer',))
-    jaap_id = cursor.fetchone()
-    cursor.execute('SELECT id FROM players WHERE name = ?', ('Marise Draaijer-Holierhoek',))
-    marise_id = cursor.fetchone()
-    
-    if jaap_id and marise_id:
-        cursor.execute('UPDATE players SET partner_id = ? WHERE id = ?', (marise_id[0], jaap_id[0]))
-        cursor.execute('UPDATE players SET partner_id = ? WHERE id = ?', (jaap_id[0], marise_id[0]))
+    # Insert players based on database type
+    if Config.DB_TYPE == 'postgresql':
+        for name, email, phone in players:
+            cursor.execute('''
+                INSERT INTO players (name, email, phone) VALUES (%s, %s, %s) 
+                ON CONFLICT (name) DO NOTHING
+            ''', (name, email, phone))
+    else:
+        for name, email, phone in players:
+            cursor.execute('''
+                INSERT OR IGNORE INTO players (name, email, phone) VALUES (?, ?, ?)
+            ''', (name, email, phone))
     
     conn.commit()
+    if Config.DB_TYPE == 'postgresql':
+        cursor.close()
     conn.close()
 
 if __name__ == '__main__':

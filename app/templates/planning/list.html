@@ -41,9 +41,40 @@
                        class="btn btn-success">
                         <i class="fas fa-eye"></i> Bekijken
                     </a>
-                    <a href="{{ url_for('planning.export_version', version_id=final_version.id) }}" 
-                       class="btn btn-outline-success">
-                        <i class="fas fa-download"></i> Exporteren
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Active Version -->
+{% if active_version %}
+<div class="card mb-4 border-primary">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-play"></i> Actieve Planning
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h6 class="card-title">{{ active_version.name }}</h6>
+                <p class="card-text">{{ active_version.description or 'Geen beschrijving' }}</p>
+                <small class="text-muted">
+                    <i class="fas fa-calendar"></i> Gemaakt op {{ active_version.created_at }}
+                    {% if active_version.is_final %}
+                        <span class="badge bg-success ms-2">
+                            <i class="fas fa-star"></i> Ook Definitief
+                        </span>
+                    {% endif %}
+                </small>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group">
+                    <a href="{{ url_for('planning.view_version', version_id=active_version.id) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-eye"></i> Bekijken
                     </a>
                 </div>
             </div>
@@ -113,6 +144,16 @@
                                                 <i class="fas fa-check"></i>
                                             </a>
                                         {% endif %}
+                                        {% if not active_version or active_version.id != version.id %}
+                                            <button type="button" class="btn btn-outline-warning" title="Actief maken"
+                                                    onclick="confirmSetActive({{ version.id }}, '{{ version.name }}')">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                        {% else %}
+                                            <span class="badge bg-primary">
+                                                <i class="fas fa-play"></i> Actief
+                                            </span>
+                                        {% endif %}
                                         <a href="{{ url_for('planning.duplicate_version', version_id=version.id) }}" 
                                            class="btn btn-outline-info" title="Dupliceren">
                                             <i class="fas fa-copy"></i>
@@ -173,7 +214,7 @@
         <div class="card text-center">
             <div class="card-body">
                 <h4 class="card-title text-info">
-                    {% if final_version %}1{% else %}0{% endif %}
+                    {% if active_version %}1{% else %}0{% endif %}
                 </h4>
                 <p class="card-text">Actieve Planning</p>
             </div>
@@ -186,6 +227,10 @@
     <input type="hidden" name="confirm" value="true">
 </form>
 
+<!-- Hidden set active form -->
+<form id="setActiveForm" method="POST" style="display: none;">
+</form>
+
 {% endblock %}
 
 {% block scripts %}
@@ -194,6 +239,14 @@ function confirmDelete(versionId, versionName) {
     if (confirm('Weet je zeker dat je de planning "' + versionName + '" wilt verwijderen?\n\nDeze kan later nog worden teruggehaald.')) {
         var form = document.getElementById('deleteForm');
         form.action = '/planning/' + versionId + '/delete';
+        form.submit();
+    }
+}
+
+function confirmSetActive(versionId, versionName) {
+    if (confirm('Weet je zeker dat je de planning "' + versionName + '" actief wilt maken?\n\nDit wordt de nieuwe basis voor speler statistieken.')) {
+        var form = document.getElementById('setActiveForm');
+        form.action = '/planning/' + versionId + '/set_active';
         form.submit();
     }
 }

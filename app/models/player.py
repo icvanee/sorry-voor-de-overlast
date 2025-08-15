@@ -150,7 +150,7 @@ class Player:
     
     @staticmethod
     def get_match_stats(player_id):
-        """Get match playing statistics for a player."""
+        """Get match playing statistics for a player from the active planning."""
         conn = get_db_connection()
         stats = conn.execute('''
             SELECT 
@@ -158,7 +158,8 @@ class Player:
                 COUNT(CASE WHEN mp.actually_played = 1 THEN 1 END) as matches_played,
                 COUNT(CASE WHEN mp.is_confirmed = 1 THEN 1 END) as matches_confirmed
             FROM match_planning mp
-            WHERE mp.player_id = ?
+            JOIN planning_versions pv ON mp.planning_version_id = pv.id
+            WHERE mp.player_id = ? AND pv.is_active = TRUE AND pv.deleted_at IS NULL
         ''', (player_id,)).fetchone()
         conn.close()
         return stats

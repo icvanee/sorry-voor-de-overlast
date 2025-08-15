@@ -16,7 +16,11 @@ def list_versions():
     """List all planning versions."""
     versions = PlanningVersion.get_all()
     final_version = PlanningVersion.get_final()
-    return render_template('planning/list.html', versions=versions, final_version=final_version)
+    active_version = PlanningVersion.get_active()
+    return render_template('planning/list.html', 
+                         versions=versions, 
+                         final_version=final_version,
+                         active_version=active_version)
 
 @planning.route('/create', methods=['GET', 'POST'])
 def create_version():
@@ -330,3 +334,24 @@ def list_deleted_versions():
     deleted_versions = [v for v in versions if v.get('is_deleted', 0)]
     
     return render_template('planning/deleted.html', versions=deleted_versions)
+
+@planning.route('/<int:version_id>/set_active', methods=['POST'])
+def set_active_version(version_id):
+    """Set a planning version as the active one."""
+    version = PlanningVersion.get_by_id(version_id)
+    if not version:
+        flash('Planning versie niet gevonden.', 'error')
+        return redirect(url_for('planning.list_versions'))
+    
+    # Check if version is deleted
+    if PlanningVersion.is_deleted(version_id):
+        flash('Een verwijderde planning kan niet actief worden gemaakt.', 'error')
+        return redirect(url_for('planning.list_versions'))
+    
+    try:
+        PlanningVersion.set_active(version_id)
+        flash(f'Planning "{version["name"]}" is nu de actieve planning.', 'success')
+    except Exception as e:
+        flash(f'Fout bij activeren: {str(e)}', 'error')
+    
+    return redirect(url_for('planning.list_versions'))

@@ -152,6 +152,45 @@ class PlanningVersion:
         ''', (version_id,)).fetchone()
         conn.close()
         return result and result['deleted_at'] is not None
+    
+    @staticmethod
+    def set_active(version_id):
+        """Set a planning version as active (only one can be active)."""
+        conn = get_db_connection()
+        
+        # First, deactivate all other versions
+        conn.execute('''
+            UPDATE planning_versions SET is_active = FALSE
+        ''')
+        
+        # Then activate this version
+        conn.execute('''
+            UPDATE planning_versions SET is_active = TRUE WHERE id = ?
+        ''', (version_id,))
+        
+        conn.commit()
+        conn.close()
+    
+    @staticmethod
+    def get_active():
+        """Get the currently active planning version."""
+        conn = get_db_connection()
+        version = conn.execute('''
+            SELECT * FROM planning_versions 
+            WHERE is_active = TRUE AND deleted_at IS NULL
+        ''').fetchone()
+        conn.close()
+        return version
+    
+    @staticmethod
+    def is_active(version_id):
+        """Check if a planning version is active."""
+        conn = get_db_connection()
+        result = conn.execute('''
+            SELECT is_active FROM planning_versions WHERE id = ?
+        ''', (version_id,)).fetchone()
+        conn.close()
+        return result and result['is_active']
 
 class MatchPlanning:
     @staticmethod

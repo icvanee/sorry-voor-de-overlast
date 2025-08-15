@@ -104,6 +104,13 @@ def init_db():
         # Column already exists, ignore
         pass
     
+    # Add active planning column to planning_versions if it doesn't exist
+    try:
+        cursor.execute('ALTER TABLE planning_versions ADD COLUMN is_active BOOLEAN DEFAULT FALSE')
+    except Exception:
+        # Column already exists, ignore
+        pass
+    
     conn.commit()
     conn.close()
 

@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Beschikbaarheid: {{ player.name }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('players.list_players') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Terug naar Spelers
+            </a>
+            <a href="{{ url_for('players.edit_player', player_id=player.id) }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-edit"></i> Speler Bewerken
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Player Info -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h5 class="card-title">{{ player.name }}</h5>
+                <p class="card-text">
+                    {% if player.role %}
+                        <span class="badge bg-secondary me-2">{{ player.role }}</span>
+                    {% endif %}
+                    {% if player.partner_name %}
+                        <span class="badge partner-badge text-white me-2">Partner: {{ player.partner_name }}</span>
+                    {% endif %}
+                    {% if player.is_active %}
+                        <span class="badge bg-success">Actief</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inactief</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group">
+                    <button id="selectAll" class="btn btn-sm btn-success">
+                        <i class="fas fa-check-circle"></i> Alles Beschikbaar
+                    </button>
+                    <button id="selectNone" class="btn btn-sm btn-danger">
+                        <i class="fas fa-times-circle"></i> Alles Niet Beschikbaar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Availability Settings -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Beschikbaarheid per Wedstrijd</h5>
+        <small class="text-muted">Klik op de schakelaars om beschikbaarheid in te stellen</small>
+    </div>
+    <div class="card-body">
+        {% if matches %}
+            <form id="availabilityForm">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Datum</th>
+                                <th>Wedstrijd</th>
+                                <th>Type</th>
+                                <th>Locatie</th>
+                                <th class="text-center">Beschikbaar</th>
+                                <th>Notities</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for match in matches %}
+                                {% set availability = availability_data.get(match.id) %}
+                                <tr class="{% if match.is_home %}table-success{% else %}table-warning{% endif %}">
+                                    <td>
+                                        <strong>{{ match.date }}</strong>
+                                        {% if match.match_number %}
+                                            <br><small class="text-muted">Ronde {{ match.match_number }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
+                                        {% if match.venue %}
+                                            <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.venue }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if match.is_friendly %}
+                                            {% if match.match_number and match.match_number.lower().startswith('b') %}
+                                                <span class="badge bg-warning text-dark">Beker</span>
+                                            {% else %}
+                                                <span class="badge bg-info">Vriendschappelijk</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-primary">Competitie</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if match.is_home %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-home"></i> Thuis
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-road"></i> Uit
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input availability-toggle" 
+                                                   type="checkbox" 
+                                                   id="availability_{{ match.id }}"
+                                                   data-match-id="{{ match.id }}"
+                                                   {% if availability and availability.is_available %}checked{% endif %}>
+                                            <label class="form-check-label" for="availability_{{ match.id }}">
+                                                <span class="available-text {% if availability and availability.is_available %}text-success{% else %}text-danger{% endif %}">
+                                                    {% if availability and availability.is_available %}
+                                                        <i class="fas fa-check"></i> Ja
+                                                    {% else %}
+                                                        <i class="fas fa-times"></i> Nee
+                                                    {% endif %}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="text" 
+                                               class="form-control form-control-sm notes-input" 
+                                               data-match-id="{{ match.id }}"
+                                               placeholder="Optionele notitie..."
+                                               value="{{ availability.notes if availability else '' }}">
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-3 text-center">
+                    <button type="button" id="saveAll" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Alle Wijzigingen Opslaan
+                    </button>
+                </div>
+            </form>
+        {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Geen wedstrijden beschikbaar</h5>
+                <p class="text-muted">Er zijn nog geen wedstrijden om beschikbaarheid voor in te stellen.</p>
+                <a href="{{ url_for('main.import_matches') }}" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Wedstrijden Importeren
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistics -->
+{% if matches %}
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="card-title text-primary" id="totalMatches">{{ matches|length }}</h4>
+                <p class="card-text">Totaal Wedstrijden</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="card-title text-success" id="availableCount">0</h4>
+                <p class="card-text">Beschikbaar</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="card-title text-danger" id="unavailableCount">0</h4>
+                <p class="card-text">Niet Beschikbaar</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="card-title text-warning" id="unknownCount">{{ matches|length }}</h4>
+                <p class="card-text">Nog Niet Ingesteld</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const playerId = {{ player.id }};
+    
+    // Update statistics
+    function updateStats() {
+        const toggles = document.querySelectorAll('.availability-toggle');
+        let available = 0, unavailable = 0, unknown = 0;
+        
+        toggles.forEach(toggle => {
+            if (toggle.checked) {
+                available++;
+            } else {
+                const matchId = toggle.dataset.matchId;
+                const hasExistingData = toggle.closest('tr').querySelector('.notes-input').value || 
+                                      toggle.hasAttribute('data-has-existing');
+                if (hasExistingData) {
+                    unavailable++;
+                } else {
+                    unknown++;
+                }
+            }
+        });
+        
+        document.getElementById('availableCount').textContent = available;
+        document.getElementById('unavailableCount').textContent = unavailable;
+        document.getElementById('unknownCount').textContent = unknown;
+    }
+    
+    // Handle availability toggle changes
+    document.querySelectorAll('.availability-toggle').forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            const label = this.nextElementSibling.querySelector('.available-text');
+            if (this.checked) {
+                label.innerHTML = '<i class="fas fa-check"></i> Ja';
+                label.className = 'available-text text-success';
+            } else {
+                label.innerHTML = '<i class="fas fa-times"></i> Nee';
+                label.className = 'available-text text-danger';
+            }
+            updateStats();
+        });
+    });
+    
+    // Select all available
+    document.getElementById('selectAll').addEventListener('click', function() {
+        document.querySelectorAll('.availability-toggle').forEach(toggle => {
+            toggle.checked = true;
+            toggle.dispatchEvent(new Event('change'));
+        });
+    });
+    
+    // Select none available
+    document.getElementById('selectNone').addEventListener('click', function() {
+        document.querySelectorAll('.availability-toggle').forEach(toggle => {
+            toggle.checked = false;
+            toggle.dispatchEvent(new Event('change'));
+        });
+    });
+    
+    // Save all changes
+    document.getElementById('saveAll').addEventListener('click', function() {
+        const button = this;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opslaan...';
+        
+        const updates = [];
+        
+        document.querySelectorAll('.availability-toggle').forEach(toggle => {
+            const matchId = toggle.dataset.matchId;
+            const isAvailable = toggle.checked;
+            const notes = toggle.closest('tr').querySelector('.notes-input').value;
+            
+            updates.push({
+                match_id: matchId,
+                is_available: isAvailable,
+                notes: notes
+            });
+        });
+        
+        fetch(`/players/${playerId}/availability`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({updates: updates})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                button.innerHTML = '<i class="fas fa-check"></i> Opgeslagen!';
+                button.className = 'btn btn-success btn-lg';
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-save"></i> Alle Wijzigingen Opslaan';
+                    button.className = 'btn btn-primary btn-lg';
+                }, 2000);
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            button.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Fout bij opslaan';
+            button.className = 'btn btn-danger btn-lg';
+            setTimeout(() => {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-save"></i> Alle Wijzigingen Opslaan';
+                button.className = 'btn btn-primary btn-lg';
+            }, 3000);
+        });
+    });
+    
+    // Initial stats update
+    updateStats();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,248 @@
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
+from app.services.planning import PlanningVersion, MatchPlanning, AutoPlanner
+from app.models.player import Player
+from app.models.match import Match
+from datetime import datetime
+
+planning = Blueprint('planning', __name__)
+
+@planning.route('/')
+def list_versions():
+    """List all planning versions."""
+    versions = PlanningVersion.get_all()
+    final_version = PlanningVersion.get_final()
+    return render_template('planning/list.html', versions=versions, final_version=final_version)
+
+@planning.route('/create', methods=['GET', 'POST'])
+def create_version():
+    """Create a new planning version."""
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description', '')
+        auto_generate = request.form.get('auto_generate') == 'true'
+        
+        if not name:
+            flash('Planning name is required!', 'error')
+            return redirect(url_for('planning.create_version'))
+        
+        try:
+            version_id = PlanningVersion.create(name, description)
+            
+            if auto_generate:
+                planner = AutoPlanner()
+                if planner.generate_planning(version_id):
+                    flash(f'Planning "{name}" created with automatic assignments!', 'success')
+                else:
+                    flash(f'Planning "{name}" created, but auto-generation failed.', 'warning')
+            else:
+                flash(f'Planning "{name}" created successfully!', 'success')
+            
+            return redirect(url_for('planning.view_version', version_id=version_id))
+        except Exception as e:
+            flash(f'Error creating planning: {e}', 'error')
+    
+    return render_template('planning/create.html')
+
+@planning.route('/<int:version_id>')
+def view_version(version_id):
+    """View a specific planning version."""
+    version = PlanningVersion.get_by_id(version_id)
+    if not version:
+        flash('Planning version not found!', 'error')
+        return redirect(url_for('planning.list_versions'))
+    
+    # Get planning grouped by match
+    planning_data = MatchPlanning.get_version_planning(version_id)
+    return render_template('planning/view.html', version=version, planning_data=planning_data)
+
+@planning.route('/<int:version_id>/make_final')
+def make_final(version_id):
+    """Make a planning version final."""
+    try:
+        PlanningVersion.set_final(version_id)
+        flash('Planning version set as final!', 'success')
+    except Exception as e:
+        flash(f'Error setting planning as final: {e}', 'error')
+    
+    return redirect(url_for('planning.list_versions'))
+
+@planning.route('/<int:version_id>/duplicate')
+def duplicate_version(version_id):
+    """Duplicate a planning version."""
+    try:
+        original = PlanningVersion.get_by_id(version_id)
+        if not original:
+            flash('Original planning not found!', 'error')
+            return redirect(url_for('planning.list_versions'))
+        
+        new_name = f"Copy of {original['name']}"
+        new_id = PlanningVersion.create(new_name, f"Duplicated from: {original['description']}")
+        
+        # TODO: Copy all planning data
+        flash(f'Planning duplicated successfully!', 'success')
+        return redirect(url_for('planning.view_version', version_id=new_id))
+    except Exception as e:
+        flash(f'Error duplicating planning: {e}', 'error')
+        return redirect(url_for('planning.list_versions'))
+
+@planning.route('/match/<int:match_id>')
+def match_planning(match_id):
+    """Show planning options for a specific match."""
+    match = Match.get_by_id(match_id)
+    if not match:
+        flash('Match not found!', 'error')
+        return redirect(url_for('matches.list_matches'))
+    
+    versions = PlanningVersion.get_all()
+    return render_template('planning/match_planning.html', match=match, versions=versions)
+    matches = Match.get_all()
+    
+    # Group planning by match
+    match_planning = {}
+    for item in planning_data:
+        match_id = item['match_id']
+        if match_id not in match_planning:
+            match_planning[match_id] = {
+                'match': next((m for m in matches if m['id'] == match_id), None),
+                'players': []
+            }
+        match_planning[match_id]['players'].append(item)
+    
+    # Get player statistics
+    planner = AutoPlanner()
+    player_stats = planner.get_player_statistics(version_id)
+    
+    return render_template('planning/view.html', 
+                         version=version, 
+                         match_planning=match_planning,
+                         player_stats=player_stats)
+
+@planning.route('/<int:version_id>/match/<int:match_id>')
+def edit_match_planning(version_id, match_id):
+    """Edit planning for a specific match."""
+    version = PlanningVersion.get_by_id(version_id)
+    match = Match.get_by_id(match_id)
+    
+    if not version or not match:
+        flash('Planning version or match not found!', 'error')
+        return redirect(url_for('planning.list_versions'))
+    
+    # Get current planning for this match
+    current_planning = MatchPlanning.get_planning(version_id, match_id)
+    selected_player_ids = [p['player_id'] for p in current_planning]
+    
+    # Get all players and their availability
+    all_players = Player.get_all()
+    player_data = []
+    
+    for player in all_players:
+        availability = Player.get_availability(player['id'], match_id)
+        is_available = not availability or availability['is_available']
+        is_selected = player['id'] in selected_player_ids
+        
+        player_data.append({
+            'player': player,
+            'is_available': is_available,
+            'is_selected': is_selected,
+            'availability_notes': availability['notes'] if availability else ''
+        })
+    
+    return render_template('planning/edit_match.html',
+                         version=version,
+                         match=match,
+                         player_data=player_data)
+
+@planning.route('/<int:version_id>/match/<int:match_id>/save', methods=['POST'])
+def save_match_planning(version_id, match_id):
+    """Save planning for a specific match."""
+    try:
+        selected_players = request.form.getlist('selected_players')
+        player_ids = [int(pid) for pid in selected_players]
+        
+        if len(player_ids) < 4:
+            flash('At least 4 players must be selected!', 'error')
+            return redirect(url_for('planning.edit_match_planning', 
+                                  version_id=version_id, match_id=match_id))
+        
+        if len(player_ids) > 6:
+            flash('Maximum 6 players can be selected!', 'error')
+            return redirect(url_for('planning.edit_match_planning', 
+                                  version_id=version_id, match_id=match_id))
+        
+        MatchPlanning.set_planning(version_id, match_id, player_ids)
+        flash('Match planning saved successfully!', 'success')
+        
+    except Exception as e:
+        flash(f'Error saving planning: {e}', 'error')
+    
+    return redirect(url_for('planning.view_version', version_id=version_id))
+
+@planning.route('/<int:version_id>/set_final')
+def set_final(version_id):
+    """Set a planning version as final."""
+    try:
+        PlanningVersion.set_final(version_id)
+        flash('Planning version set as final!', 'success')
+    except Exception as e:
+        flash(f'Error setting planning as final: {e}', 'error')
+    
+    return redirect(url_for('planning.view_version', version_id=version_id))
+
+@planning.route('/<int:version_id>/regenerate')
+def regenerate_planning(version_id):
+    """Regenerate automatic planning for a version."""
+    try:
+        planner = AutoPlanner()
+        if planner.generate_planning(version_id):
+            flash('Planning regenerated successfully!', 'success')
+        else:
+            flash('Failed to regenerate planning.', 'error')
+    except Exception as e:
+        flash(f'Error regenerating planning: {e}', 'error')
+    
+    return redirect(url_for('planning.view_version', version_id=version_id))
+
+@planning.route('/api/<int:version_id>/confirm/<int:match_id>/<int:player_id>', methods=['POST'])
+def confirm_player(version_id, match_id, player_id):
+    """Confirm a player for a match via API."""
+    try:
+        confirmed = request.json.get('confirmed', False)
+        MatchPlanning.confirm_player(version_id, match_id, player_id, confirmed)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@planning.route('/api/<int:version_id>/played/<int:match_id>/<int:player_id>', methods=['POST'])
+def mark_played(version_id, match_id, player_id):
+    """Mark a player as having played via API."""
+    try:
+        played = request.json.get('played', False)
+        MatchPlanning.mark_played(version_id, match_id, player_id, played)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@planning.route('/compare')
+def compare_versions():
+    """Compare different planning versions."""
+    versions = PlanningVersion.get_all()
+    
+    selected_versions = request.args.getlist('versions')
+    comparison_data = {}
+    
+    if selected_versions:
+        for version_id in selected_versions:
+            version_id = int(version_id)
+            version = PlanningVersion.get_by_id(version_id)
+            if version:
+                planner = AutoPlanner()
+                stats = planner.get_player_statistics(version_id)
+                comparison_data[version_id] = {
+                    'version': version,
+                    'stats': stats
+                }
+    
+    return render_template('planning/compare.html', 
+                         versions=versions,
+                         comparison_data=comparison_data,
+                         selected_versions=selected_versions)

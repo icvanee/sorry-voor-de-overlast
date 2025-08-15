@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Spelers Overzicht</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('players.add_player') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-user-plus"></i> Nieuwe Speler
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Partner Pairs -->
+{% if partner_pairs %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-heart text-danger"></i> Partner Koppels
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for pair in partner_pairs %}
+                <div class="col-md-4 mb-2">
+                    <div class="alert alert-info d-flex justify-content-between align-items-center">
+                        <span>
+                            <strong>{{ pair[0] }}</strong> & <strong>{{ pair[1] }}</strong>
+                        </span>
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Players Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Alle Spelers</h5>
+    </div>
+    <div class="card-body">
+        {% if players %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Naam</th>
+                            <th>Rol</th>
+                            <th>Partner</th>
+                            <th>Beschikbaarheid</th>
+                            <th>Status</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in players %}
+                            <tr>
+                                <td>
+                                    <strong>{{ player.name }}</strong>
+                                </td>
+                                <td>
+                                    {% if player.role %}
+                                        <span class="badge bg-secondary">{{ player.role }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if player.partner_name %}
+                                        <span class="badge partner-badge text-white">{{ player.partner_name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">Geen</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if player.availability_stats %}
+                                        {% set available = player.availability_stats.available_matches or 0 %}
+                                        {% set total = player.availability_stats.total_matches or 0 %}
+                                        {% if total > 0 %}
+                                            {% set percentage = (available / total * 100) | round(1) %}
+                                            <div class="d-flex align-items-center">
+                                                <span class="me-2">
+                                                    <strong>{{ available }}/{{ total }}</strong>
+                                                </span>
+                                                <div class="progress flex-fill" style="height: 20px; width: 80px;">
+                                                    <div class="progress-bar 
+                                                        {% if percentage >= 75 %}bg-success
+                                                        {% elif percentage >= 50 %}bg-warning
+                                                        {% else %}bg-danger
+                                                        {% endif %}"
+                                                        role="progressbar" 
+                                                        style="width: {{ percentage }}%"
+                                                        aria-valuenow="{{ percentage }}" 
+                                                        aria-valuemin="0" 
+                                                        aria-valuemax="100">
+                                                        {{ percentage }}%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">Geen wedstrijden</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if player.is_active %}
+                                        <span class="badge bg-success">Actief</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactief</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('players.edit_player', player_id=player.id) }}" 
+                                           class="btn btn-outline-primary" title="Bewerken">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('players.player_availability', player_id=player.id) }}" 
+                                           class="btn btn-outline-info" title="Beschikbaarheid">
+                                            <i class="fas fa-calendar-check"></i>
+                                        </a>
+                                        <a href="{{ url_for('players.player_stats', player_id=player.id) }}" 
+                                           class="btn btn-outline-success" title="Statistieken">
+                                            <i class="fas fa-chart-bar"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Geen spelers gevonden</h5>
+                <p class="text-muted">Voeg je eerste speler toe om te beginnen.</p>
+                <a href="{{ url_for('players.add_player') }}" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> Eerste Speler Toevoegen
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="card-title text-primary">{{ players|length }}</h4>
+                <p class="card-text">Totaal Spelers</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="card-title text-success">{{ partner_pairs|length }}</h4>
+                <p class="card-text">Partner Koppels</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="card-title text-info">{{ (players|length - (partner_pairs|length * 2)) }}</h4>
+                <p class="card-text">Alleenstaande Spelers</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

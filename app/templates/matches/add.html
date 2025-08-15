@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Nieuwe Wedstrijd Toevoegen</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('matches.list_matches') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Terug naar Overzicht
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Wedstrijd Gegevens</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date" class="form-label">Datum *</label>
+                                <input type="date" class="form-control" id="date" name="date" required>
+                                <div class="form-text">Selecteer de datum van de wedstrijd.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="match_number" class="form-label">Ronde Nummer</label>
+                                <input type="text" class="form-control" id="match_number" name="match_number" 
+                                       placeholder="bijv. 1, 2, 3...">
+                                <div class="form-text">Optioneel: ronde nummer in de competitie.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="home_team" class="form-label">Thuis Team *</label>
+                                <input type="text" class="form-control" id="home_team" name="home_team" required
+                                       placeholder="Naam van het thuis team">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="away_team" class="form-label">Uit Team *</label>
+                                <input type="text" class="form-control" id="away_team" name="away_team" required
+                                       placeholder="Naam van het uit team">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="venue" class="form-label">Locatie</label>
+                        <input type="text" class="form-control" id="venue" name="venue" 
+                               placeholder="bijv. Café De Vrijbuiter, Sporthal West...">
+                        <div class="form-text">Optioneel: locatie waar de wedstrijd plaatsvindt.</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Wedstrijd Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="is_home" value="true" id="home_match" checked>
+                                    <label class="form-check-label" for="home_match">
+                                        <i class="fas fa-home text-success"></i> Thuiswedstrijd
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="is_home" value="false" id="away_match">
+                                    <label class="form-check-label" for="away_match">
+                                        <i class="fas fa-road text-warning"></i> Uitwedstrijd
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Competitie Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="is_friendly" value="false" id="competition_match" checked>
+                                    <label class="form-check-label" for="competition_match">
+                                        <i class="fas fa-trophy text-primary"></i> Competitie Wedstrijd
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="is_friendly" value="true" id="friendly_match">
+                                    <label class="form-check-label" for="friendly_match">
+                                        <i class="fas fa-handshake text-info"></i> Vriendschappelijke Wedstrijd
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('matches.list_matches') }}" class="btn btn-secondary me-md-2">
+                            Annuleren
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Wedstrijd Toevoegen
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Tips</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-lightbulb"></i> Handige Tips</h6>
+                    <ul class="mb-0">
+                        <li>Controleer de datum zorgvuldig</li>
+                        <li>Voor thuiswedstrijden: standaard locatie is Café De Vrijbuiter</li>
+                        <li>Ronde nummers helpen bij planning</li>
+                        <li>Vriendschappelijke wedstrijden tellen niet mee voor competitie</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-download"></i> Automatisch Importeren</h6>
+                    <p class="mb-2">In plaats van handmatig toevoegen kun je ook wedstrijden importeren van teambeheer.nl</p>
+                    <a href="{{ url_for('main.import_matches') }}" class="btn btn-sm btn-success">
+                        <i class="fas fa-download"></i> Import Wedstrijden
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Team Names -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Team Suggesties</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Ons Team:</strong></p>
+                <button type="button" class="btn btn-sm btn-outline-primary me-1 mb-1" 
+                        onclick="document.getElementById('home_team').value='Sorry voor de Overlast'">
+                    Sorry voor de Overlast
+                </button>
+                
+                <p class="mb-2 mt-3"><strong>Veel voorkomende tegenstanders:</strong></p>
+                <div class="d-grid gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" 
+                            onclick="fillOpponent('De Kanaries')">De Kanaries</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" 
+                            onclick="fillOpponent('Café Central')">Café Central</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" 
+                            onclick="fillOpponent('De Goede Worp')">De Goede Worp</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fillOpponent(teamName) {
+    const isHome = document.querySelector('input[name="is_home"]:checked').value === 'true';
+    if (isHome) {
+        document.getElementById('away_team').value = teamName;
+    } else {
+        document.getElementById('home_team').value = teamName;
+    }
+}
+
+// Set default venue for home matches
+document.addEventListener('DOMContentLoaded', function() {
+    const homeRadio = document.getElementById('home_match');
+    const awayRadio = document.getElementById('away_match');
+    const venueInput = document.getElementById('venue');
+    
+    function updateVenue() {
+        if (homeRadio.checked && !venueInput.value) {
+            venueInput.value = 'Café De Vrijbuiter';
+        }
+    }
+    
+    homeRadio.addEventListener('change', updateVenue);
+    awayRadio.addEventListener('change', function() {
+        if (awayRadio.checked) {
+            venueInput.value = '';
+        }
+    });
+    
+    // Set initial value
+    updateVenue();
+});
+</script>
+{% endblock %}

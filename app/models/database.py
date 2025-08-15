@@ -2,12 +2,41 @@ import sqlite3
 import os
 from flask import current_app
 from datetime import datetime
+from config import Config
 
 def get_db_connection():
-    """Get a database connection."""
-    conn = sqlite3.connect(current_app.config['DATABASE_PATH'])
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Get a database connection based on configuration."""
+    try:
+        if Config.DB_TYPE == 'postgresql':
+            import psycopg2
+            import psycopg2.extras
+            
+            conn = psycopg2.connect(
+                host=Config.DB_CONFIG['host'],
+                port=Config.DB_CONFIG['port'],
+                database=Config.DB_CONFIG['database'],
+                user=Config.DB_CONFIG['user'],
+                password=Config.DB_CONFIG['password']
+            )
+            conn.cursor_factory = psycopg2.extras.RealDictCursor
+            return conn
+        else:
+            # SQLite fallback
+            conn = sqlite3.connect(Config.DATABASE_PATH)
+            conn.row_factory = sqlite3.Row
+            return conn
+    except Exception as e:
+        print(f"Database connection error: {e}")
+        # Fallback to SQLite if PostgreSQL fails
+        if hasattr(Config, 'DATABASE_PATH') and Config.DATABASE_PATH:
+            conn = sqlite3.connect(Config.DATABASE_PATH)
+            conn.row_factory = sqlite3.Row
+            return conn
+        else:
+            # Emergency fallback
+            conn = sqlite3.connect('/tmp/emergency.db')
+            conn.row_factory = sqlite3.Row
+            return conn
 
 def init_db():
     """Initialize the database with required tables."""

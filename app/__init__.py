@@ -23,11 +23,13 @@ def create_app():
     from app.routes.matches import matches
     from app.routes.planning import planning
     from app.routes.debug import debug
+    from app.routes.test import test
     
     app.register_blueprint(main)
     app.register_blueprint(players, url_prefix='/players')
     app.register_blueprint(matches, url_prefix='/matches')
     app.register_blueprint(planning, url_prefix='/planning')
     app.register_blueprint(debug, url_prefix='/debug')
+    app.register_blueprint(test, url_prefix='/test')
     
     return app

@@ -48,14 +48,52 @@ class PlanningVersion:
     
     @staticmethod
     def set_final(version_id):
-        """Set a planning version as final."""
+        """Mark a planning version as final."""
         conn = get_db_connection()
-        # First unset all other versions as final
-        conn.execute('UPDATE planning_versions SET is_final = FALSE')
-        # Set this version as final
-        conn.execute('UPDATE planning_versions SET is_final = TRUE WHERE id = ?', (version_id,))
+        
+        # First, unmark all other versions
+        conn.execute('''
+            UPDATE planning_versions SET is_final = FALSE
+        ''')
+        
+        # Mark this version as final
+        conn.execute('''
+            UPDATE planning_versions SET is_final = TRUE WHERE id = ?
+        ''', (version_id,))
+        
         conn.commit()
         conn.close()
+    
+    @staticmethod
+    def copy_from_version(name, description, source_version_id, pinned_matches=None):
+        """Create a new planning version by copying from an existing one."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Create new version
+        cursor.execute('''
+            INSERT INTO planning_versions (name, description) 
+            VALUES (?, ?)
+        ''', (name, description))
+        new_version_id = cursor.lastrowid
+        
+        # Copy planning from source version
+        if pinned_matches is None:
+            pinned_matches = []
+        
+        # Copy all planning entries
+        cursor.execute('''
+            INSERT INTO match_planning (planning_version_id, match_id, player_id, is_confirmed, actually_played, is_pinned, notes)
+            SELECT ?, match_id, player_id, is_confirmed, actually_played, 
+                   CASE WHEN match_id IN ({}) THEN TRUE ELSE FALSE END, notes
+            FROM match_planning 
+            WHERE planning_version_id = ?
+        '''.format(','.join('?' * len(pinned_matches)) if pinned_matches else 'NULL'), 
+           [new_version_id] + pinned_matches + [source_version_id])
+        
+        conn.commit()
+        conn.close()
+        return new_version_id
     
     @staticmethod
     def get_final():
@@ -102,13 +140,19 @@ class MatchPlanning:
         for item in planning:
             match_id = item['match_id']
             if match_id not in grouped:
+                # Handle potential missing match_number column safely
+                try:
+                    match_number = item['match_number'] or ''
+                except (KeyError, IndexError):
+                    match_number = ''
+                    
                 grouped[match_id] = {
                     'match': {
                         'id': match_id,
                         'date': item['date'],
                         'home_team': item['home_team'],
                         'away_team': item['away_team'],
-                        'match_number': item.get('match_number', '')
+                        'match_number': match_number
                     },
                     'players': []
                 }
@@ -141,6 +185,42 @@ class MatchPlanning:
         
         conn.commit()
         conn.close()
+    
+    @staticmethod
+    def pin_match(version_id, match_id, pinned=True):
+        """Pin or unpin a match to preserve its planning."""
+        conn = get_db_connection()
+        conn.execute('''
+            UPDATE match_planning 
+            SET is_pinned = ?
+            WHERE planning_version_id = ? AND match_id = ?
+        ''', (pinned, version_id, match_id))
+        conn.commit()
+        conn.close()
+    
+    @staticmethod
+    def get_pinned_matches(version_id):
+        """Get all pinned matches for a version."""
+        conn = get_db_connection()
+        matches = conn.execute('''
+            SELECT DISTINCT match_id 
+            FROM match_planning 
+            WHERE planning_version_id = ? AND is_pinned = TRUE
+        ''', (version_id,)).fetchall()
+        conn.close()
+        return [match['match_id'] for match in matches]
+    
+    @staticmethod
+    def is_match_pinned(version_id, match_id):
+        """Check if a match is pinned."""
+        conn = get_db_connection()
+        result = conn.execute('''
+            SELECT COUNT(*) as count
+            FROM match_planning 
+            WHERE planning_version_id = ? AND match_id = ? AND is_pinned = TRUE
+        ''', (version_id, match_id)).fetchone()
+        conn.close()
+        return result['count'] > 0
     
     @staticmethod
     def confirm_player(version_id, match_id, player_id, confirmed=True):
@@ -210,6 +290,57 @@ class AutoPlanner:
         
         return True
     
+    def generate_planning_selective(self, version_id, exclude_pinned=True):
+        """Generate planning for specific matches, optionally excluding pinned ones."""
+        all_players = Player.get_all()
+        all_matches = Match.get_all()
+        
+        if exclude_pinned:
+            pinned_matches = MatchPlanning.get_pinned_matches(version_id)
+            matches_to_plan = [m for m in all_matches if m['id'] not in pinned_matches]
+        else:
+            matches_to_plan = all_matches
+        
+        # Get current usage count
+        player_match_count = {}
+        for player in all_players:
+            stats = self.get_current_usage(version_id, player['id'])
+            player_match_count[player['id']] = stats
+        
+        # Generate planning for selected matches
+        for match in matches_to_plan:
+            available_players = self._get_available_players(match['id'], all_players)
+            
+            if len(available_players) < self.max_players:
+                print(f"Warning: Only {len(available_players)} players available for match {match['id']}")
+            
+            # Select players based on smart algorithm
+            selected_players = self._select_players_smart(
+                available_players, player_match_count, match
+            )
+            
+            # Update planning (remove existing first if not pinned)
+            if not exclude_pinned or not MatchPlanning.is_match_pinned(version_id, match['id']):
+                player_ids = [p['id'] for p in selected_players[:self.max_players]]
+                MatchPlanning.set_planning(version_id, match['id'], player_ids)
+                
+                # Update usage count
+                for player_id in player_ids:
+                    player_match_count[player_id] += 1
+        
+        return True
+    
+    def get_current_usage(self, version_id, player_id):
+        """Get current match count for a player in this version."""
+        conn = get_db_connection()
+        result = conn.execute('''
+            SELECT COUNT(*) as count
+            FROM match_planning 
+            WHERE planning_version_id = ? AND player_id = ?
+        ''', (version_id, player_id)).fetchone()
+        conn.close()
+        return result['count'] if result else 0
+    
     def _get_available_players(self, match_id, all_players):
         """Get players available for a match."""
         available = []
@@ -220,28 +351,45 @@ class AutoPlanner:
         return available
     
     def _select_players_smart(self, available_players, usage_count, match):
-        """Smart player selection considering usage and preferences."""
-        # Sort by usage count (lowest first)
+        """Smart player selection considering usage and partner preferences."""
+        # Sort by usage count (lowest first) for fair distribution
         available_players.sort(key=lambda p: usage_count[p['id']])
         
         selected = []
+        used_player_ids = set()
         
-        # First, try to include partners together if both are available
+        # Get partner pairs who prefer to play together
         partner_pairs = Player.get_partner_pairs()
+        
+        # First, try to include partner pairs who both prefer to play together
         for pair in partner_pairs:
             player1 = next((p for p in available_players if p['id'] == pair['id1']), None)
             player2 = next((p for p in available_players if p['id'] == pair['id2']), None)
             
-            if player1 and player2 and len(selected) + 2 <= self.max_players:
-                if player1 not in selected:
+            # Check if both players are available and not already selected
+            if (player1 and player2 and 
+                player1['id'] not in used_player_ids and 
+                player2['id'] not in used_player_ids and
+                len(selected) + 2 <= self.max_players):
+                
+                # Check if both players prefer to play together
+                prefer1 = Player.get_partner_preference(player1['id'], match['id'])
+                prefer2 = Player.get_partner_preference(player2['id'], match['id'])
+                
+                if prefer1 and prefer2:
                     selected.append(player1)
-                if player2 not in selected:
                     selected.append(player2)
+                    used_player_ids.add(player1['id'])
+                    used_player_ids.add(player2['id'])
         
-        # Fill remaining spots with lowest usage players
-        for player in available_players:
-            if player not in selected and len(selected) < self.max_players:
+        # Fill remaining spots with lowest usage players who haven't been selected
+        remaining_players = [p for p in available_players if p['id'] not in used_player_ids]
+        remaining_players.sort(key=lambda p: usage_count[p['id']])
+        
+        for player in remaining_players:
+            if len(selected) < self.max_players:
                 selected.append(player)
+                used_player_ids.add(player['id'])
         
         return selected
     

@@ -10,12 +10,14 @@ def list_players():
     all_players = Player.get_all()
     partner_pairs = Player.get_partner_pairs()
     
-    # Get availability stats for each player
+    # Get availability and match stats for each player
     players_with_stats = []
     for player in all_players:
-        stats = Player.get_availability_stats(player['id'])
+        availability_stats = Player.get_availability_stats(player['id'])
+        match_stats = Player.get_match_stats(player['id'])
         player_dict = dict(player)
-        player_dict['availability_stats'] = stats
+        player_dict['availability_stats'] = availability_stats
+        player_dict['match_stats'] = match_stats
         players_with_stats.append(player_dict)
     
     return render_template('players/list.html', players=players_with_stats, partner_pairs=partner_pairs)
@@ -59,6 +61,7 @@ def edit_player(player_id):
         name = request.form.get('name')
         role = request.form.get('role', '')
         partner_id = request.form.get('partner_id')
+        prefer_partner_together = request.form.get('prefer_partner_together') == 'true'
         
         if not name:
             flash('Player name is required!', 'error')
@@ -67,6 +70,10 @@ def edit_player(player_id):
         try:
             partner_id = int(partner_id) if partner_id else None
             Player.update(player_id, name, role, partner_id)
+            
+            # Update partner preference
+            Player.set_partner_preference(player_id, prefer_partner_together)
+            
             flash(f'Player {name} updated successfully!', 'success')
             return redirect(url_for('players.list_players'))
         except Exception as e:

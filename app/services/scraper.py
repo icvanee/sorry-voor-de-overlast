@@ -411,9 +411,9 @@ def import_static_matches():
             # Check if match already exists
             existing_matches = Match.get_all()
             exists = any(
-                existing.get('date') == match_data['date'] and 
-                existing.get('home_team') == match_data['home_team'] and
-                existing.get('away_team') == match_data['away_team']
+                existing['date'] == match_data['date'] and 
+                existing['home_team'] == match_data['home_team'] and
+                existing['away_team'] == match_data['away_team']
                 for existing in existing_matches
             )
             

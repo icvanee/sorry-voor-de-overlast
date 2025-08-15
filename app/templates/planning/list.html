@@ -100,7 +100,7 @@
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         {% if not version.is_final %}
-                                            <a href="{{ url_for('planning.edit_version', version_id=version.id) }}" 
+                                            <a href="{{ url_for('planning.view_version', version_id=version.id) }}" 
                                                class="btn btn-outline-secondary" title="Bewerken">
                                                 <i class="fas fa-edit"></i>
                                             </a>

@@ -9,7 +9,7 @@
                 <i class="fas fa-arrow-left"></i> Terug naar Overzicht
             </a>
             {% if not version.is_final %}
-                <a href="{{ url_for('planning.edit_version', version_id=version.id) }}" class="btn btn-sm btn-primary">
+                <a href="{{ url_for('planning.view_version', version_id=version.id) }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-edit"></i> Bewerken
                 </a>
             {% endif %}

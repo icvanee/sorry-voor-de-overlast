@@ -6,6 +6,11 @@ from datetime import datetime
 
 planning = Blueprint('planning', __name__)
 
+@planning.route('/rules')
+def planning_rules():
+    """Show planning rules and guidelines."""
+    return render_template('planning/rules.html')
+
 @planning.route('/')
 def list_versions():
     """List all planning versions."""
@@ -20,28 +25,44 @@ def create_version():
         name = request.form.get('name')
         description = request.form.get('description', '')
         auto_generate = request.form.get('auto_generate') == 'true'
+        copy_from = request.form.get('copy_from')
+        pinned_matches = request.form.getlist('pinned_matches')
         
         if not name:
             flash('Planning name is required!', 'error')
             return redirect(url_for('planning.create_version'))
         
         try:
-            version_id = PlanningVersion.create(name, description)
-            
-            if auto_generate:
-                planner = AutoPlanner()
-                if planner.generate_planning(version_id):
-                    flash(f'Planning "{name}" created with automatic assignments!', 'success')
-                else:
-                    flash(f'Planning "{name}" created, but auto-generation failed.', 'warning')
+            if copy_from:
+                # Copy from existing version with pinned matches
+                version_id = PlanningVersion.copy_from_version(
+                    name, description, int(copy_from), 
+                    [int(m) for m in pinned_matches] if pinned_matches else None
+                )
+                flash(f'Planning "{name}" created by copying from existing version!', 'success')
             else:
+                # Create new version
+                version_id = PlanningVersion.create(name, description)
                 flash(f'Planning "{name}" created successfully!', 'success')
+            
+            if auto_generate and not copy_from:
+                # Auto-generate planning for new version
+                auto_planner = AutoPlanner()
+                auto_planner.generate_planning(version_id)
+                flash('Automatic planning generated!', 'info')
+            elif auto_generate and copy_from:
+                # Auto-generate only for non-pinned matches
+                auto_planner = AutoPlanner()
+                auto_planner.generate_planning_selective(version_id, exclude_pinned=True)
+                flash('Automatic planning generated for non-pinned matches!', 'info')
             
             return redirect(url_for('planning.view_version', version_id=version_id))
         except Exception as e:
             flash(f'Error creating planning: {e}', 'error')
     
-    return render_template('planning/create.html')
+    # GET request - show form
+    existing_versions = PlanningVersion.get_all()
+    return render_template('planning/create.html', existing_versions=existing_versions)
 
 @planning.route('/<int:version_id>')
 def view_version(version_id):
@@ -62,9 +83,34 @@ def make_final(version_id):
         PlanningVersion.set_final(version_id)
         flash('Planning version set as final!', 'success')
     except Exception as e:
-        flash(f'Error setting planning as final: {e}', 'error')
+        flash(f'Error setting final version: {e}', 'error')
     
-    return redirect(url_for('planning.list_versions'))
+    return redirect(url_for('planning.view_version', version_id=version_id))
+
+@planning.route('/<int:version_id>/pin_match/<int:match_id>', methods=['POST'])
+def pin_match(version_id, match_id):
+    """Pin or unpin a match in planning."""
+    try:
+        pinned = request.form.get('pinned') == 'true'
+        MatchPlanning.pin_match(version_id, match_id, pinned)
+        action = 'pinned' if pinned else 'unpinned'
+        flash(f'Match {action} successfully!', 'success')
+    except Exception as e:
+        flash(f'Error pinning match: {e}', 'error')
+    
+    return redirect(url_for('planning.view_version', version_id=version_id))
+
+@planning.route('/<int:version_id>/regenerate', methods=['POST'])
+def regenerate_planning(version_id):
+    """Regenerate planning for non-pinned matches."""
+    try:
+        auto_planner = AutoPlanner()
+        auto_planner.generate_planning_selective(version_id, exclude_pinned=True)
+        flash('Planning regenerated for non-pinned matches!', 'success')
+    except Exception as e:
+        flash(f'Error regenerating planning: {e}', 'error')
+    
+    return redirect(url_for('planning.view_version', version_id=version_id))
 
 @planning.route('/<int:version_id>/duplicate')
 def duplicate_version(version_id):
@@ -185,20 +231,6 @@ def set_final(version_id):
         flash('Planning version set as final!', 'success')
     except Exception as e:
         flash(f'Error setting planning as final: {e}', 'error')
-    
-    return redirect(url_for('planning.view_version', version_id=version_id))
-
-@planning.route('/<int:version_id>/regenerate')
-def regenerate_planning(version_id):
-    """Regenerate automatic planning for a version."""
-    try:
-        planner = AutoPlanner()
-        if planner.generate_planning(version_id):
-            flash('Planning regenerated successfully!', 'success')
-        else:
-            flash('Failed to regenerate planning.', 'error')
-    except Exception as e:
-        flash(f'Error regenerating planning: {e}', 'error')
     
     return redirect(url_for('planning.view_version', version_id=version_id))
 

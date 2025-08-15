@@ -63,6 +63,7 @@ def init_database():
             player_id INTEGER NOT NULL,
             is_confirmed BOOLEAN DEFAULT FALSE,
             actually_played BOOLEAN DEFAULT FALSE,
+            is_pinned BOOLEAN DEFAULT FALSE,
             notes TEXT DEFAULT '',
             FOREIGN KEY (planning_version_id) REFERENCES planning_versions (id),
             FOREIGN KEY (match_id) REFERENCES matches (id),
@@ -97,6 +98,61 @@ def init_database():
             FOREIGN KEY (player_id) REFERENCES players (id)
         )
     ''')
+    
+    # Create partner_preferences table for match-specific partner preferences
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS partner_preferences (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id INTEGER NOT NULL,
+            partner_id INTEGER NOT NULL,
+            match_id INTEGER,
+            prefer_together BOOLEAN DEFAULT TRUE,
+            notes TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (player_id) REFERENCES players (id),
+            FOREIGN KEY (partner_id) REFERENCES players (id),
+            FOREIGN KEY (match_id) REFERENCES matches (id),
+            UNIQUE(player_id, partner_id, match_id)
+        )
+    ''')
+    
+    # Add column to players table for general partner preference
+    try:
+        cursor.execute('''
+            ALTER TABLE players ADD COLUMN prefer_partner_together BOOLEAN DEFAULT TRUE
+        ''')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    # Add columns to matches table for additional match info
+    try:
+        cursor.execute('''
+            ALTER TABLE matches ADD COLUMN time TEXT DEFAULT ''
+        ''')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+        
+    try:
+        cursor.execute('''
+            ALTER TABLE matches ADD COLUMN opponent TEXT DEFAULT ''
+        ''')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+        
+    try:
+        cursor.execute('''
+            ALTER TABLE matches ADD COLUMN competition TEXT DEFAULT ''
+        ''')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+        
+    # Add is_pinned column to match_planning table
+    try:
+        cursor.execute('''
+            ALTER TABLE match_planning ADD COLUMN is_pinned BOOLEAN DEFAULT FALSE
+        ''')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     
     # Seed initial players
     players = [

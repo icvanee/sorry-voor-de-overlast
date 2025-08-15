@@ -147,3 +147,54 @@ class Player:
         ''', (player_id,)).fetchone()
         conn.close()
         return stats
+    
+    @staticmethod
+    def get_match_stats(player_id):
+        """Get match playing statistics for a player."""
+        conn = get_db_connection()
+        stats = conn.execute('''
+            SELECT 
+                COUNT(DISTINCT mp.match_id) as matches_planned,
+                COUNT(CASE WHEN mp.actually_played = 1 THEN 1 END) as matches_played,
+                COUNT(CASE WHEN mp.is_confirmed = 1 THEN 1 END) as matches_confirmed
+            FROM match_planning mp
+            WHERE mp.player_id = ?
+        ''', (player_id,)).fetchone()
+        conn.close()
+        return stats
+    
+    @staticmethod
+    def set_partner_preference(player_id, prefer_together=True):
+        """Set general partner preference for a player."""
+        conn = get_db_connection()
+        conn.execute('''
+            UPDATE players 
+            SET prefer_partner_together = ?
+            WHERE id = ?
+        ''', (prefer_together, player_id))
+        conn.commit()
+        conn.close()
+    
+    @staticmethod
+    def get_partner_preference(player_id, match_id=None):
+        """Get partner preference for a player (general or match-specific)."""
+        conn = get_db_connection()
+        
+        if match_id:
+            # Check for match-specific preference first
+            pref = conn.execute('''
+                SELECT prefer_together FROM partner_preferences 
+                WHERE player_id = ? AND match_id = ?
+            ''', (player_id, match_id)).fetchone()
+            
+            if pref:
+                conn.close()
+                return pref['prefer_together']
+        
+        # Fall back to general preference
+        player = conn.execute('''
+            SELECT prefer_partner_together FROM players WHERE id = ?
+        ''', (player_id,)).fetchone()
+        conn.close()
+        
+        return player['prefer_partner_together'] if player else True

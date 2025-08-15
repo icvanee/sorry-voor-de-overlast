@@ -2,6 +2,18 @@
 
 Een Python applicatie voor het beheren van teamplanning voor het dartsteam "Sorry voor de Overlast".
 
+## 🚀 Quick Start
+
+Voor de volgende keer dat je de applicatie wilt starten:
+
+```bash
+cd /Users/vaneeic/Source/Private/sorry-voor-de-overlast
+source venv/bin/activate
+python run.py
+```
+
+Dan ga je naar: **http://127.0.0.1:5001** in je browser.
+
 ## Features
 
 - **Wedstrijdschema Import**: Automatisch importeren van wedstrijden van teambeheer.nl
@@ -172,7 +184,7 @@ python run.py
 
 ## Gebruik
 
-1. Open je browser en ga naar `http://localhost:5000`
+1. Open je browser en ga naar `http://localhost:5001`
 2. Importeer het wedstrijdschema van teambeheer.nl
 3. Voeg spelers toe met hun voorkeuren
 4. Genereer automatische planningen

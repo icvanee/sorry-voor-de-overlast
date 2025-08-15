@@ -26,7 +26,7 @@
                 <div class="col-md-4 mb-2">
                     <div class="alert alert-info d-flex justify-content-between align-items-center">
                         <span>
-                            <strong>{{ pair[0] }}</strong> & <strong>{{ pair[1] }}</strong>
+                            <strong>{{ pair[1] }}</strong> & <strong>{{ pair[3] }}</strong>
                         </span>
                         <i class="fas fa-users"></i>
                     </div>
@@ -52,6 +52,8 @@
                             <th>Rol</th>
                             <th>Partner</th>
                             <th>Beschikbaarheid</th>
+                            <th>Gepland</th>
+                            <th>Gespeeld</th>
                             <th>Status</th>
                             <th>Acties</th>
                         </tr>
@@ -103,6 +105,43 @@
                                             </div>
                                         {% else %}
                                             <span class="text-muted">Geen wedstrijden</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if player.match_stats %}
+                                        {% set planned = player.match_stats.matches_planned or 0 %}
+                                        {% if planned > 0 %}
+                                            <div class="text-center">
+                                                <span class="badge bg-primary fs-6">{{ planned }}</span>
+                                            </div>
+                                            <small class="text-muted d-block text-center">wedstrijden</small>
+                                        {% else %}
+                                            <span class="text-muted">Nog geen</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if player.match_stats %}
+                                        {% set planned = player.match_stats.matches_planned or 0 %}
+                                        {% set played = player.match_stats.matches_played or 0 %}
+                                        {% if played > 0 or planned > 0 %}
+                                            <div class="text-center">
+                                                <span class="badge bg-success fs-6">{{ played }}</span>
+                                            </div>
+                                            <small class="text-muted d-block text-center">
+                                                {% if planned > 0 %}
+                                                    {{ (played / planned * 100) | round(0) | int }}% van gepland
+                                                {% else %}
+                                                    gespeeld
+                                                {% endif %}
+                                            </small>
+                                        {% else %}
+                                            <span class="text-muted">Nog geen</span>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">-</span>

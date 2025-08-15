@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Speler Bewerken</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('players.list_players') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Terug naar Overzicht
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Speler Gegevens</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Naam *</label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               value="{{ player.name }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Rol</label>
+                        <input type="text" class="form-control" id="role" name="role" 
+                               value="{{ player.role or '' }}" 
+                               placeholder="bijv. Kapitein, Vice-kapitein">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="partner_id" class="form-label">Vaste Partner</label>
+                        <select class="form-select" id="partner_id" name="partner_id">
+                            <option value="">Geen vaste partner</option>
+                            {% for available_player in available_players %}
+                                <option value="{{ available_player.id }}" 
+                                        {% if player.partner_id == available_player.id %}selected{% endif %}>
+                                    {{ available_player.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    {% if player.partner_id %}
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                   id="prefer_partner_together" name="prefer_partner_together" value="true"
+                                   {% if player.prefer_partner_together %}checked{% endif %}>
+                            <label class="form-check-label" for="prefer_partner_together">
+                                <strong>Voorkeur om samen te spelen</strong>
+                            </label>
+                            <div class="form-text">
+                                Vink aan als deze speler bij voorkeur samen met zijn/haar partner wil worden ingedeeld voor wedstrijden.
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Opslaan
+                        </button>
+                        
+                        {% if player.is_active %}
+                        <a href="{{ url_for('players.deactivate_player', player_id=player.id) }}" 
+                           class="btn btn-outline-danger"
+                           onclick="return confirm('Weet je zeker dat je deze speler wilt deactiveren?')">
+                            <i class="fas fa-user-slash"></i> Deactiveren
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Snelle Acties</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('players.player_availability', player_id=player.id) }}" 
+                       class="btn btn-outline-info">
+                        <i class="fas fa-calendar-check"></i> Beschikbaarheid Beheren
+                    </a>
+                    <a href="{{ url_for('players.player_stats', player_id=player.id) }}" 
+                       class="btn btn-outline-success">
+                        <i class="fas fa-chart-bar"></i> Statistieken Bekijken
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        {% if player.partner_name %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-heart text-danger"></i> Partner Informatie
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    <strong>Huidige Partner:</strong><br>
+                    {{ player.partner_name }}
+                </p>
+                <small class="text-muted">
+                    Partner relaties zijn wederzijds. Als je de partner wijzigt, wordt dit voor beide spelers aangepast.
+                </small>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.getElementById('partner_id').addEventListener('change', function() {
+    const partnerSelected = this.value !== '';
+    const preferenceDiv = document.querySelector('#prefer_partner_together').closest('.mb-3');
+    if (partnerSelected) {
+        preferenceDiv.style.display = 'block';
+    } else {
+        preferenceDiv.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

@@ -34,13 +34,48 @@
                         <div class="form-text">Beschrijf het doel of de kenmerken van deze planning.</div>
                     </div>
                     
+                    <!-- Copy from existing version section -->
+                    {% if existing_versions %}
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="copy_from_existing" onchange="toggleCopySection()">
+                            <label class="form-check-label" for="copy_from_existing">
+                                <strong>Kopiëren van bestaande planning</strong>
+                            </label>
+                            <div class="form-text">Start met een kopie van een bestaande planning</div>
+                        </div>
+                        
+                        <div id="copy_section" style="display: none;" class="mt-3 p-3 border rounded bg-light">
+                            <div class="mb-3">
+                                <label for="copy_from" class="form-label">Kopieer van:</label>
+                                <select class="form-select" id="copy_from" name="copy_from" onchange="loadPinnedMatches()">
+                                    <option value="">Selecteer bestaande planning...</option>
+                                    {% for version in existing_versions %}
+                                        <option value="{{ version.id }}">{{ version.name }} 
+                                            {% if version.is_final %}(Definitief){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div id="pinned_matches_section" style="display: none;">
+                                <label class="form-label">Wedstrijden vastpinnen:</label>
+                                <div class="form-text mb-2">Selecteer wedstrijden die exact hetzelfde moeten blijven in de nieuwe planning</div>
+                                <div id="matches_list">
+                                    <!-- Will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <div class="mb-4">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="auto_generate" name="auto_generate" value="true">
                             <label class="form-check-label" for="auto_generate">
                                 <strong>Automatische planning genereren</strong>
                             </label>
-                            <div class="form-text">
+                            <div class="form-text" id="auto_generate_text">
                                 Het systeem zal automatisch spelers toewijzen aan wedstrijden op basis van:
                                 <ul class="mt-2 mb-0">
                                     <li>Beschikbaarheid van spelers</li>
@@ -132,5 +167,82 @@ document.addEventListener('DOMContentLoaded', function() {
         nameInput.value = `Planning ${currentSeason}`;
     }
 });
+
+function toggleCopySection() {
+    const checkbox = document.getElementById('copy_from_existing');
+    const section = document.getElementById('copy_section');
+    const autoGenerateText = document.getElementById('auto_generate_text');
+    
+    if (checkbox.checked) {
+        section.style.display = 'block';
+        autoGenerateText.innerHTML = '<strong>Bij kopiëren:</strong> Alleen niet-vastgepinde wedstrijden worden opnieuw gepland.';
+    } else {
+        section.style.display = 'none';
+        document.getElementById('copy_from').value = '';
+        document.getElementById('pinned_matches_section').style.display = 'none';
+        autoGenerateText.innerHTML = `Het systeem zal automatisch spelers toewijzen aan wedstrijden op basis van:
+            <ul class="mt-2 mb-0">
+                <li>Beschikbaarheid van spelers</li>
+                <li>Partner voorkeuren (koppels)</li>
+                <li>Gelijke verdeling van speeltijd</li>
+                <li>Wedstrijd type (thuis/uit, competitie/vriendschappelijk)</li>
+            </ul>`;
+    }
+}
+
+function loadPinnedMatches() {
+    const versionId = document.getElementById('copy_from').value;
+    const section = document.getElementById('pinned_matches_section');
+    const matchesList = document.getElementById('matches_list');
+    
+    if (!versionId) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    // Show loading
+    matchesList.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Wedstrijden laden...';
+    section.style.display = 'block';
+    
+    // Fetch matches for this version (simplified - in real app would be AJAX call)
+    // For now, show placeholder
+    setTimeout(() => {
+        matchesList.innerHTML = `
+            <div class="form-text mb-2">Selecteer welke wedstrijden je exact wilt behouden:</div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="pinned_matches" value="1" id="match_1">
+                        <label class="form-check-label" for="match_1">
+                            <small>01-09-2025 - Sorry voor de Overlast vs Team A</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="pinned_matches" value="2" id="match_2">
+                        <label class="form-check-label" for="match_2">
+                            <small>08-09-2025 - Team B vs Sorry voor de Overlast</small>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="selectAllMatches()">
+                <i class="fas fa-check-square"></i> Alles Selecteren
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2 ms-2" onclick="selectNoMatches()">
+                <i class="fas fa-square"></i> Niets Selecteren
+            </button>
+        `;
+    }, 500);
+}
+
+function selectAllMatches() {
+    document.querySelectorAll('input[name="pinned_matches"]').forEach(cb => cb.checked = true);
+}
+
+function selectNoMatches() {
+    document.querySelectorAll('input[name="pinned_matches"]').forEach(cb => cb.checked = false);
+}
 </script>
 {% endblock %}

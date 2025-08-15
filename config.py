@@ -5,13 +5,13 @@ class Config:
     
     # Database path - Railway persistent storage
     if os.environ.get('RAILWAY_ENVIRONMENT'):
-        # Railway environment - use /app/data directory
-        DATABASE_PATH = '/app/data/database.db'
-        # Ensure data directory exists
-        os.makedirs('/app/data', exist_ok=True)
+        # Railway environment - use /tmp directory for SQLite
+        DATABASE_PATH = '/tmp/database.db'
     else:
         # Local development
         DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'data', 'database.db')
+        # Ensure local data directory exists
+        os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
     
     TEAM_NAME = "Sorry voor de overlast"
     TEAM_URL = "https://feeds.teambeheer.nl/web/team?d=36&t=8723&s=25-26"

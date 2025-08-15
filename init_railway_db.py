@@ -13,13 +13,13 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from config import Config
-from app.models.database import init_db
-
 def ensure_database():
     """Ensure database exists and is initialized"""
     try:
-        # Create data directory if it doesn't exist
+        from config import Config
+        from app.models.database import init_db
+        
+        # Create database directory if it doesn't exist
         db_path = Path(Config.DATABASE_PATH)
         db_path.parent.mkdir(parents=True, exist_ok=True)
         
@@ -33,7 +33,10 @@ def ensure_database():
             
     except Exception as e:
         print(f"Error initializing database: {e}")
-        sys.exit(1)
+        # Don't exit on Railway - just log the error
+        return False
+    
+    return True
 
 def has_tables(db_path):
     """Check if database has the required tables"""

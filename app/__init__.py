@@ -6,10 +6,11 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    # Ensure data directory exists
-    data_dir = os.path.dirname(app.config['DATABASE_PATH'])
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
+    # Only create data directory for SQLite
+    if Config.DB_TYPE == 'sqlite':
+        data_dir = os.path.dirname(Config.DATABASE_PATH)
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
     
     # Initialize database
     from app.models.database import init_db
@@ -21,10 +22,12 @@ def create_app():
     from app.routes.players import players
     from app.routes.matches import matches
     from app.routes.planning import planning
+    from app.routes.debug import debug
     
     app.register_blueprint(main)
     app.register_blueprint(players, url_prefix='/players')
     app.register_blueprint(matches, url_prefix='/matches')
     app.register_blueprint(planning, url_prefix='/planning')
+    app.register_blueprint(debug, url_prefix='/debug')
     
     return app

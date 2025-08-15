@@ -2,11 +2,11 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python run.py"
+startCommand = "gunicorn run:app --bind 0.0.0.0:$PORT"
 healthcheckPath = "/"
 healthcheckTimeout = 100
 restartPolicyType = "always"
 
 [environment]
-PORT = "5000"
 FLASK_ENV = "production"
+RAILWAY_ENVIRONMENT = "true"

@@ -2,7 +2,17 @@ import os
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'sorry-voor-de-overlast-secret-key-2025'
-    DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'data', 'database.db')
+    
+    # Database path - Railway persistent storage
+    if os.environ.get('RAILWAY_ENVIRONMENT'):
+        # Railway environment - use /app/data directory
+        DATABASE_PATH = '/app/data/database.db'
+        # Ensure data directory exists
+        os.makedirs('/app/data', exist_ok=True)
+    else:
+        # Local development
+        DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'data', 'database.db')
+    
     TEAM_NAME = "Sorry voor de overlast"
     TEAM_URL = "https://feeds.teambeheer.nl/web/team?d=36&t=8723&s=25-26"
     VENUE = "Café De Vrijbuiter"

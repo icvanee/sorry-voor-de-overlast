@@ -13,10 +13,24 @@ class PlanningVersion:
     
     @staticmethod
     def get_all():
-        """Get all planning versions."""
+        """Get all non-deleted planning versions."""
         conn = get_db_connection()
         versions = conn.execute('''
             SELECT * FROM planning_versions 
+            WHERE deleted_at IS NULL
+            ORDER BY created_at DESC
+        ''').fetchall()
+        conn.close()
+        return versions
+    
+    @staticmethod
+    def get_all_including_deleted():
+        """Get all planning versions including soft-deleted ones."""
+        conn = get_db_connection()
+        versions = conn.execute('''
+            SELECT *, 
+                   CASE WHEN deleted_at IS NOT NULL THEN 1 ELSE 0 END as is_deleted
+            FROM planning_versions 
             ORDER BY created_at DESC
         ''').fetchall()
         conn.close()
@@ -100,10 +114,44 @@ class PlanningVersion:
         """Get the final planning version."""
         conn = get_db_connection()
         version = conn.execute('''
-            SELECT * FROM planning_versions WHERE is_final = TRUE
+            SELECT * FROM planning_versions WHERE is_final = TRUE AND deleted_at IS NULL
         ''').fetchone()
         conn.close()
         return version
+    
+    @staticmethod
+    def soft_delete(version_id):
+        """Soft delete a planning version by setting deleted_at timestamp."""
+        conn = get_db_connection()
+        conn.execute('''
+            UPDATE planning_versions 
+            SET deleted_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (version_id,))
+        conn.commit()
+        conn.close()
+    
+    @staticmethod
+    def restore(version_id):
+        """Restore a soft-deleted planning version by clearing deleted_at."""
+        conn = get_db_connection()
+        conn.execute('''
+            UPDATE planning_versions 
+            SET deleted_at = NULL 
+            WHERE id = ?
+        ''', (version_id,))
+        conn.commit()
+        conn.close()
+    
+    @staticmethod
+    def is_deleted(version_id):
+        """Check if a planning version is soft-deleted."""
+        conn = get_db_connection()
+        result = conn.execute('''
+            SELECT deleted_at FROM planning_versions WHERE id = ?
+        ''', (version_id,)).fetchone()
+        conn.close()
+        return result and result['deleted_at'] is not None
 
 class MatchPlanning:
     @staticmethod
@@ -249,7 +297,7 @@ class MatchPlanning:
 class AutoPlanner:
     def __init__(self):
         self.min_players = 4
-        self.max_players = 6
+        self.max_players = 4  # HARDE REGEL: Maximaal 4 spelers per wedstrijd
         self.target_matches_per_player = 12
     
     def generate_planning(self, version_id):
@@ -351,18 +399,38 @@ class AutoPlanner:
         return available
     
     def _select_players_smart(self, available_players, usage_count, match):
-        """Smart player selection considering usage and partner preferences."""
-        # Sort by usage count (lowest first) for fair distribution
-        available_players.sort(key=lambda p: usage_count[p['id']])
+        """Smart player selection considering usage and partner preferences with improved balance."""
+        if len(available_players) < self.max_players:
+            # If not enough available players, use all available ones
+            return available_players[:self.max_players]
+        
+        # Calculate average usage to aim for balance
+        total_usage = sum(usage_count.values())
+        total_players = len(usage_count)
+        average_usage = total_usage / total_players if total_players > 0 else 0
+        
+        # Sort available players by usage count (lowest first) and then by how much below average they are
+        def priority_score(player):
+            usage = usage_count[player['id']]
+            below_average = max(0, average_usage - usage)  # Prioritize players below average
+            return (usage, -below_average)  # Lower usage first, then those most below average
+        
+        available_players.sort(key=priority_score)
         
         selected = []
         used_player_ids = set()
         
         # Get partner pairs who prefer to play together
-        partner_pairs = Player.get_partner_pairs()
+        try:
+            partner_pairs = Player.get_partner_pairs()
+        except:
+            partner_pairs = []  # Fallback if method doesn't exist
         
-        # First, try to include partner pairs who both prefer to play together
+        # First, try to include partner pairs if they're both low on usage
         for pair in partner_pairs:
+            if len(selected) >= self.max_players:
+                break
+                
             player1 = next((p for p in available_players if p['id'] == pair['id1']), None)
             player2 = next((p for p in available_players if p['id'] == pair['id2']), None)
             
@@ -372,17 +440,17 @@ class AutoPlanner:
                 player2['id'] not in used_player_ids and
                 len(selected) + 2 <= self.max_players):
                 
-                # Check if both players prefer to play together
-                prefer1 = Player.get_partner_preference(player1['id'], match['id'])
-                prefer2 = Player.get_partner_preference(player2['id'], match['id'])
+                # Only include pair if both have low usage (below or at average)
+                usage1 = usage_count[player1['id']]
+                usage2 = usage_count[player2['id']]
                 
-                if prefer1 and prefer2:
+                if usage1 <= average_usage and usage2 <= average_usage:
                     selected.append(player1)
                     selected.append(player2)
                     used_player_ids.add(player1['id'])
                     used_player_ids.add(player2['id'])
         
-        # Fill remaining spots with lowest usage players who haven't been selected
+        # Fill remaining spots with players having the lowest usage
         remaining_players = [p for p in available_players if p['id'] not in used_player_ids]
         remaining_players.sort(key=lambda p: usage_count[p['id']])
         
@@ -390,8 +458,16 @@ class AutoPlanner:
             if len(selected) < self.max_players:
                 selected.append(player)
                 used_player_ids.add(player['id'])
+                
+        # Ensure we have exactly max_players (4) if possible
+        if len(selected) < self.max_players and len(available_players) >= self.max_players:
+            # Add more players if we somehow selected too few
+            all_available = [p for p in available_players if p['id'] not in used_player_ids]
+            for player in all_available:
+                if len(selected) < self.max_players:
+                    selected.append(player)
         
-        return selected
+        return selected[:self.max_players]  # Ensure exactly max_players
     
     def get_player_statistics(self, version_id):
         """Get statistics for players in this planning version."""

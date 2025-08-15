@@ -278,3 +278,55 @@ def compare_versions():
                          versions=versions,
                          comparison_data=comparison_data,
                          selected_versions=selected_versions)
+
+@planning.route('/<int:version_id>/delete', methods=['POST'])
+def delete_version(version_id):
+    """Soft delete a planning version."""
+    version = PlanningVersion.get_by_id(version_id)
+    if not version:
+        flash('Planning versie niet gevonden.', 'error')
+        return redirect(url_for('planning.list_versions'))
+    
+    # Check if it's the final version
+    if version['is_final']:
+        flash('De definitieve planning kan niet worden verwijderd.', 'error')
+        return redirect(url_for('planning.list_versions'))
+    
+    # Confirmation check
+    confirm = request.form.get('confirm')
+    if confirm != 'true':
+        flash('Verwijdering geannuleerd.', 'info')
+        return redirect(url_for('planning.list_versions'))
+    
+    try:
+        PlanningVersion.soft_delete(version_id)
+        flash(f'Planning "{version["name"]}" is verwijderd. Deze kan nog worden teruggehaald.', 'success')
+    except Exception as e:
+        flash(f'Fout bij verwijderen: {str(e)}', 'error')
+    
+    return redirect(url_for('planning.list_versions'))
+
+@planning.route('/<int:version_id>/restore', methods=['POST'])
+def restore_version(version_id):
+    """Restore a soft-deleted planning version."""
+    try:
+        # Check if version exists and is deleted
+        if not PlanningVersion.is_deleted(version_id):
+            flash('Planning versie is niet verwijderd of bestaat niet.', 'error')
+            return redirect(url_for('planning.list_versions'))
+        
+        PlanningVersion.restore(version_id)
+        version = PlanningVersion.get_by_id(version_id)
+        flash(f'Planning "{version["name"]}" is succesvol teruggehaald.', 'success')
+    except Exception as e:
+        flash(f'Fout bij terughalen: {str(e)}', 'error')
+    
+    return redirect(url_for('planning.list_versions'))
+
+@planning.route('/deleted')
+def list_deleted_versions():
+    """Show deleted planning versions for restore."""
+    versions = PlanningVersion.get_all_including_deleted()
+    deleted_versions = [v for v in versions if v.get('is_deleted', 0)]
+    
+    return render_template('planning/deleted.html', versions=deleted_versions)

@@ -97,6 +97,13 @@ def init_db():
         )
     ''')
     
+    # Add soft delete column to planning_versions if it doesn't exist
+    try:
+        cursor.execute('ALTER TABLE planning_versions ADD COLUMN deleted_at TIMESTAMP NULL')
+    except Exception:
+        # Column already exists, ignore
+        pass
+    
     conn.commit()
     conn.close()
 

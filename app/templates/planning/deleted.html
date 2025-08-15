@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Verwijderde Planningen</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('planning.list_versions') }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-arrow-left"></i> Terug naar Planningen
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if versions %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-trash"></i> Verwijderde Planningen ({{ versions|length }})
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Naam</th>
+                        <th>Beschrijving</th>
+                        <th>Verwijderd op</th>
+                        <th>Gemaakt op</th>
+                        <th>Acties</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for version in versions %}
+                    <tr>
+                        <td>
+                            <strong>{{ version.name }}</strong>
+                        </td>
+                        <td>
+                            {{ version.description or '-' }}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ version.deleted_at }}</small>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ version.created_at }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-success" title="Terughalen"
+                                        onclick="confirmRestore({{ version.id }}, '{{ version.name }}')">
+                                    <i class="fas fa-undo"></i> Terughalen
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="text-center py-5">
+    <div class="mb-3">
+        <i class="fas fa-check-circle fa-4x text-success"></i>
+    </div>
+    <h4>Geen verwijderde planningen</h4>
+    <p class="text-muted">Er zijn momenteel geen verwijderde planningen om te herstellen.</p>
+    <a href="{{ url_for('planning.list_versions') }}" class="btn btn-primary">
+        <i class="fas fa-arrow-left"></i> Terug naar Planningen
+    </a>
+</div>
+{% endif %}
+
+<!-- Hidden restore form -->
+<form id="restoreForm" method="POST" style="display: none;">
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmRestore(versionId, versionName) {
+    if (confirm('Weet je zeker dat je de planning "' + versionName + '" wilt terughalen?')) {
+        var form = document.getElementById('restoreForm');
+        form.action = '/planning/' + versionId + '/restore';
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

@@ -46,6 +46,7 @@ def init_database():
                 location VARCHAR(200),
                 is_home BOOLEAN NOT NULL,
                 is_cup_match BOOLEAN DEFAULT false,
+                is_played BOOLEAN DEFAULT false,
                 round_name VARCHAR(50),
                 opponent VARCHAR(200),
                 result VARCHAR(20),
@@ -119,66 +120,66 @@ def init_database():
             CREATE INDEX IF NOT EXISTS idx_player_availability_player ON player_availability(player_id)
         ''')
         
+        # Issue #22: Create single planning version (ID=1) for new single planning system
+        print("🔧 Setting up single planning system (Issue #22)...")
+        cursor.execute('''
+            INSERT INTO planning_versions (id, name, description, is_final)
+            VALUES (1, 'Team Planning (Single System)', 'Geïntegreerde planning met pin en regeneratie functionaliteit', false)
+            ON CONFLICT (id) DO NOTHING
+        ''')
+        
+        # Reset sequence to start from 2 for future legacy versions
+        cursor.execute('''
+            SELECT setval('planning_versions_id_seq', GREATEST(2, (SELECT COALESCE(MAX(id), 1) FROM planning_versions) + 1))
+        ''')
+        
         conn.commit()
-        cursor.close()
-        conn.close()
+        print("✅ Database initialized successfully with single planning system!")
         
     except Exception as e:
-        print(f"Error initializing database: {e}")
+        conn.rollback()
+        print(f"❌ Error initializing database: {e}")
+        raise
+    finally:
         cursor.close()
         conn.close()
-        raise
 
-def seed_initial_data():
-    """Seed the database with initial data for development/testing."""
+def setup_single_planning():
+    """Setup single planning version for Issue #22 if not exists."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
-        # Check if we already have data
-        cursor.execute("SELECT COUNT(*) as count FROM players")
-        player_count = cursor.fetchone()['count']
-        
-        if player_count == 0:
-            print("Seeding initial players...")
-            
-            # Add some initial players
-            initial_players = [
-                ('John Doe', 'john@example.com', '+31612345678', 'speler'),
-                ('Jane Smith', 'jane@example.com', '+31687654321', 'captain'),
-                ('Bob Johnson', 'bob@example.com', '+31656789123', 'speler'),
-                ('Alice Brown', 'alice@example.com', '+31645123789', 'speler'),
-                ('Charlie Wilson', 'charlie@example.com', '+31634567890', 'speler'),
-                ('Diana Davis', 'diana@example.com', '+31623456789', 'speler'),
-            ]
-            
-            for name, email, phone, role in initial_players:
-                cursor.execute('''
-                    INSERT INTO players (name, email, phone, role)
-                    VALUES (%s, %s, %s, %s)
-                ''', (name, email, phone, role))
-        
-        # Check if we have a default planning version
-        cursor.execute("SELECT COUNT(*) as count FROM planning_versions")
+        # Check if single planning version exists
+        cursor.execute("SELECT COUNT(*) as count FROM planning_versions WHERE id = 1")
         version_count = cursor.fetchone()['count']
         
         if version_count == 0:
-            print("Creating default planning version...")
+            print("🔧 Creating single planning system (Issue #22)...")
+            
+            # Create single planning version (ID=1) for new single planning system
             cursor.execute('''
-                INSERT INTO planning_versions (name, description, is_final)
-                VALUES (%s, %s, %s)
-            ''', ('Definitieve Planning', 'De definitieve teamplanning voor het seizoen', True))
+                INSERT INTO planning_versions (id, name, description, is_final)
+                VALUES (1, 'Team Planning (Single System)', 'Geïntegreerde planning met pin en regeneratie functionaliteit', false)
+            ''')
+            
+            # Reset sequence to start from 2 for future legacy versions
+            cursor.execute('''
+                SELECT setval('planning_versions_id_seq', GREATEST(2, (SELECT COALESCE(MAX(id), 1) FROM planning_versions) + 1))
+            ''')
+            
+            print("✅ Single planning system created!")
+        else:
+            print("Single planning system already exists.")
         
         conn.commit()
-        cursor.close()
-        conn.close()
-        print("Database seeded successfully")
         
     except Exception as e:
-        print(f"Error seeding database: {e}")
+        print(f"Error setting up single planning: {e}")
+        raise
+    finally:
         cursor.close()
         conn.close()
-        raise
 
 def reset_database():
     """Reset the database by dropping and recreating all tables."""
@@ -204,7 +205,6 @@ def reset_database():
         
         # Recreate tables
         init_database()
-        seed_initial_data()
         
         print("Database reset successfully")
         
@@ -217,5 +217,4 @@ def reset_database():
 if __name__ == "__main__":
     print("Initializing database...")
     init_database()
-    seed_initial_data()
     print("Database setup complete!")

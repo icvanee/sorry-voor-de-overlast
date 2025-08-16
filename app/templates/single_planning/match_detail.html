@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block title %}Match Details - {{ match.home_team }} vs {{ match.away_team }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>
+                <i class="fas fa-futbol"></i>
+                {{ match.home_team }} vs {{ match.away_team }}
+            </h2>
+            <p class="text-muted">
+                {{ match.match_date.strftime('%A, %d %B %Y') if match.match_date }}
+                {% if match.is_home %}
+                    <span class="badge bg-primary ms-2">HOME</span>
+                {% else %}
+                    <span class="badge bg-secondary ms-2">AWAY</span>
+                {% endif %}
+                {% if match.is_played %}
+                    <span class="badge bg-success ms-2">PLAYED</span>
+                {% else %}
+                    <span class="badge bg-warning ms-2">SCHEDULED</span>
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('single_planning.dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Current Planning -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users"></i> Team Planning
+                        <span class="badge bg-{{ 'success' if planning|length == 4 else 'warning' if planning|length < 4 else 'danger' }}">
+                            {{ planning|length }} player{{ 's' if planning|length != 1 else '' }}
+                        </span>
+                    </h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-warning" onclick="toggleMatchPin()">
+                            {% if planning|selectattr('is_pinned')|list %}
+                                <i class="fas fa-unlock"></i> Unpin All
+                            {% else %}
+                                <i class="fas fa-lock"></i> Pin All
+                            {% endif %}
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="toggleMatchPlayed()">
+                            {% if match.is_played %}
+                                <i class="fas fa-undo"></i> Mark Not Played
+                            {% else %}
+                                <i class="fas fa-check"></i> Mark Played
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if planning %}
+                        <div class="list-group">
+                            {% for player in planning %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            {{ player.player_name }}
+                                            {% if player.is_pinned %}
+                                                <i class="fas fa-thumbtack text-warning"></i>
+                                            {% endif %}
+                                            {% if player.actually_played %}
+                                                <i class="fas fa-check-circle text-success"></i>
+                                            {% endif %}
+                                        </h6>
+                                        <small class="text-muted">{{ player.role or 'Player' }}</small>
+                                    </div>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" 
+                                                class="btn btn-outline-warning {% if player.is_pinned %}active{% endif %}"
+                                                onclick="togglePlayerPin({{ player.player_id }}, {{ 'false' if player.is_pinned else 'true' }})">
+                                            <i class="fas fa-thumbtack"></i>
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-outline-success {% if player.actually_played %}active{% endif %}"
+                                                onclick="toggleActuallyPlayed({{ player.player_id }}, {{ 'false' if player.actually_played else 'true' }})">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-outline-danger"
+                                                onclick="removePlayer({{ player.player_id }})">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Players Assigned</h5>
+                            <p class="text-muted">Add players from the available list to create the team.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Players -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-plus"></i> Available Players
+                        <span class="badge bg-info">{{ available_players|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if available_players %}
+                        <div class="list-group list-group-flush">
+                            {% for player in available_players %}
+                                <div class="list-group-item border-0 px-0 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ player.name }}</h6>
+                                        <small class="text-muted">{{ player.role or 'Player' }}</small>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary"
+                                            onclick="addPlayer({{ player.id }})">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-users-cog fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">All active players are assigned</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Information -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Match Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Date:</dt>
+                                <dd class="col-sm-8">{{ match.match_date.strftime('%d-%m-%Y') if match.match_date else 'Not set' }}</dd>
+                                
+                                <dt class="col-sm-4">Time:</dt>
+                                <dd class="col-sm-8">{{ match.match_time.strftime('%H:%M') if match.match_time else 'Not set' }}</dd>
+                                
+                                <dt class="col-sm-4">Location:</dt>
+                                <dd class="col-sm-8">{{ match.location or 'Not set' }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Type:</dt>
+                                <dd class="col-sm-8">
+                                    {% if match.is_cup_match %}
+                                        <span class="badge bg-warning">Cup Match</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">League Match</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Result:</dt>
+                                <dd class="col-sm-8">{{ match.result or 'Not recorded' }}</dd>
+                                
+                                <dt class="col-sm-4">Notes:</dt>
+                                <dd class="col-sm-8">{{ match.notes or 'None' }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addPlayer(playerId) {
+    const currentPlayerIds = [{{ planning|map(attribute='player_id')|join(', ') }}];
+    const updatedPlayerIds = [...currentPlayerIds, playerId];
+    
+    updateMatchPlayers(updatedPlayerIds);
+}
+
+function removePlayer(playerId) {
+    const currentPlayerIds = [{{ planning|map(attribute='player_id')|join(', ') }}];
+    const updatedPlayerIds = currentPlayerIds.filter(id => id !== playerId);
+    
+    updateMatchPlayers(updatedPlayerIds);
+}
+
+function updateMatchPlayers(playerIds) {
+    fetch('/planning/single/api/match/{{ match.id }}/players', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            match_id: {{ match.id }},
+            player_ids: playerIds,
+            preserve_pinned: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function togglePlayerPin(playerId, pin) {
+    fetch('/planning/single/api/player/' + playerId + '/pin', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            player_id: playerId,
+            match_id: {{ match.id }},
+            pinned: pin === 'true'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function toggleActuallyPlayed(playerId, played) {
+    fetch('/planning/single/api/player/' + playerId + '/actually_played', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            player_id: playerId,
+            match_id: {{ match.id }},
+            actually_played: played === 'true'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function toggleMatchPin() {
+    const hasPinnedPlayers = {{ 'true' if planning|selectattr('is_pinned')|list else 'false' }};
+    
+    fetch('/planning/single/api/match/{{ match.id }}/pin', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            match_id: {{ match.id }},
+            pinned: !hasPinnedPlayers
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function toggleMatchPlayed() {
+    const isPlayed = {{ 'true' if match.is_played else 'false' }};
+    
+    fetch('/planning/single/api/match/{{ match.id }}/played', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            match_id: {{ match.id }},
+            played: !isPlayed
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+</script>
+{% endblock %}

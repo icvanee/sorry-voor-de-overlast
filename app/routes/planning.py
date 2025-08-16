@@ -83,24 +83,29 @@ def view_version(version_id):
         match_id = row['match_id']
         
         if match_id not in planning_data:
-            # Create match object with proper structure
-            planning_data[match_id] = {
-                'match': {
-                    'id': match_id,
-                    'match_date': row['match_date'], 
-                    'home_team': row['home_team'],
-                    'away_team': row['away_team'],
-                    'match_number': row.get('match_number', None)  # Add if available
-                },
-                'players': []
-            }
+            # Create match object using SimpleNamespace for dot notation
+            from types import SimpleNamespace
+            
+            match_obj = SimpleNamespace()
+            match_obj.id = match_id
+            match_obj.match_date = row['match_date']
+            match_obj.home_team = row['home_team']
+            match_obj.away_team = row['away_team']
+            match_obj.match_number = row.get('match_number', None)
+            
+            planning_obj = SimpleNamespace()
+            planning_obj.match = match_obj
+            planning_obj.players = []
+            
+            planning_data[match_id] = planning_obj
         
         # Add player to this match
-        planning_data[match_id]['players'].append({
-            'id': row['player_id'],
-            'name': row['player_name'],
-            'role': row['role']
-        })
+        player_obj = SimpleNamespace()
+        player_obj.id = row['player_id']
+        player_obj.name = row['player_name']
+        player_obj.role = row['role']
+        
+        planning_data[match_id].players.append(player_obj)
     
     # Convert to list for template iteration
     planning_list = list(planning_data.values())

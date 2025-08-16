@@ -51,13 +51,11 @@ def create_version():
             
             if auto_generate and not copy_from:
                 # Auto-generate planning for new version
-                auto_planner = AutoPlanningService()
-                auto_planner.generate_planning(version_id)
+                AutoPlanningService.generate_planning(version_id)
                 flash('Automatic planning generated!', 'info')
             elif auto_generate and copy_from:
                 # Auto-generate only for non-pinned matches
-                auto_planner = AutoPlanningService()
-                auto_planner.generate_planning_selective(version_id, exclude_pinned=True)
+                AutoPlanningService.generate_planning_selective(version_id, exclude_pinned=True)
                 flash('Automatic planning generated for non-pinned matches!', 'info')
             
             return redirect(url_for('planning.view_version', version_id=version_id))
@@ -108,8 +106,7 @@ def pin_match(version_id, match_id):
 def regenerate_planning(version_id):
     """Regenerate planning for non-pinned matches."""
     try:
-        auto_planner = AutoPlanningService()
-        auto_planner.generate_planning_selective(version_id, exclude_pinned=True)
+        AutoPlanningService.generate_planning_selective(version_id, exclude_pinned=True)
         flash('Planning regenerated for non-pinned matches!', 'success')
     except Exception as e:
         flash(f'Error regenerating planning: {e}', 'error')

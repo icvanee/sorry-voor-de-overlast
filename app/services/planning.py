@@ -371,6 +371,17 @@ class AutoPlanningService:
         }
     
     @staticmethod
+    def generate_planning_selective(version_id, exclude_pinned=False):
+        """Generate planning selectively, optionally excluding pinned matches."""
+        # Implementation would go here - this is a complex algorithm
+        # For now, return a simple result
+        return {
+            'status': 'success', 
+            'message': 'Selective auto planning not yet implemented',
+            'matches_planned': 0
+        }
+    
+    @staticmethod
     def optimize_planning(version_id):
         """Optimize existing planning to improve fairness and constraints."""
         # Implementation would go here

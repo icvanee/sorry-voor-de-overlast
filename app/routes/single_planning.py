@@ -8,7 +8,7 @@ from app.models.database import get_db_connection
 from app.models.match import Match
 from app.models.player import Player
 
-single_planning = Blueprint('single_planning', __name__, url_prefix='/planning/single')
+single_planning = Blueprint('single_planning', __name__, url_prefix='/planning')
 
 @single_planning.route('/')
 def dashboard():
@@ -248,6 +248,11 @@ def api_regenerate():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @single_planning.route('/matrix')
+def matrix():
+    """Alias for matrix_view to make it the main matrix route."""
+    return matrix_view()
+
+@single_planning.route('/matrix_view')  
 def matrix_view():
     """Show matrix view of single planning."""
     try:
@@ -562,3 +567,14 @@ def add_player_to_match(player_id, match_id):
             'success': False, 
             'message': f'Error adding player to match: {str(e)}'
         }), 500
+
+# Legacy redirect routes for backwards compatibility
+@single_planning.route('/single/')
+def single_dashboard():
+    """Redirect single/ to main dashboard."""
+    return redirect(url_for('single_planning.dashboard'))
+
+@single_planning.route('/single/matrix')
+def single_matrix():
+    """Redirect single/matrix to main matrix."""
+    return redirect(url_for('single_planning.matrix_view'))

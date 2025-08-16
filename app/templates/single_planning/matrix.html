@@ -698,7 +698,7 @@ function regeneratePlanning() {
         
         // Use XMLHttpRequest instead of fetch for better compatibility
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/planning/single/api/regenerate', true);
+        xhr.open('POST', '/planning/api/regenerate', true);
         xhr.setRequestHeader('Content-Type', 'application/json');
         
         xhr.onreadystatechange = function() {

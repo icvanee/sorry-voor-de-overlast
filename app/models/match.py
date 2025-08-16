@@ -18,7 +18,7 @@ class Match:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT * FROM matches 
-            ORDER BY match_date ASC, time ASC
+            ORDER BY match_date ASC, match_time ASC
         ''')
         matches = cursor.fetchall()
         cursor.close()
@@ -46,7 +46,7 @@ class Match:
         cursor.execute('''
             SELECT * FROM matches 
             WHERE is_home = true 
-            ORDER BY match_date ASC, time ASC
+            ORDER BY match_date ASC, match_time ASC
         ''')
         matches = cursor.fetchall()
         cursor.close()
@@ -61,7 +61,7 @@ class Match:
         cursor.execute('''
             SELECT * FROM matches 
             WHERE is_home = false 
-            ORDER BY match_date ASC, time ASC
+            ORDER BY match_date ASC, match_time ASC
         ''')
         matches = cursor.fetchall()
         cursor.close()
@@ -92,7 +92,7 @@ class Match:
                     opponent = home_team
             
             cursor.execute('''
-                INSERT INTO matches (home_team, away_team, match_date, time, location, 
+                INSERT INTO matches (home_team, away_team, match_date, match_time, location, 
                                    is_home, opponent)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
@@ -179,7 +179,7 @@ class Match:
         query = '''
             SELECT * FROM matches 
             WHERE match_date >= %s 
-            ORDER BY match_date ASC, time ASC
+            ORDER BY match_date ASC, match_time ASC
         '''
         
         params = [date.today()]
@@ -224,7 +224,7 @@ class Match:
         cursor.execute('''
             SELECT * FROM matches 
             WHERE match_date >= %s AND match_date <= %s 
-            ORDER BY match_date ASC, time ASC
+            ORDER BY match_date ASC, match_time ASC
         ''', (start_date, end_date))
         matches = cursor.fetchall()
         cursor.close()

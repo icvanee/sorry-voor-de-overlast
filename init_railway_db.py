@@ -17,7 +17,7 @@ def ensure_database():
     """Ensure database exists and is initialized"""
     try:
         from config import Config
-        from app.models.database import init_db
+        from app.models.database import init_database
         
         # Create database directory if it doesn't exist
         db_path = Path(Config.DATABASE_PATH)
@@ -26,7 +26,7 @@ def ensure_database():
         # Check if database exists and has tables
         if not db_path.exists() or not has_tables(str(db_path)):
             print("Initializing database...")
-            init_db()
+            init_database()
             print("Database initialized successfully!")
         else:
             print("Database already exists and is initialized.")

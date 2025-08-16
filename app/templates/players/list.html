@@ -111,13 +111,13 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if player.match_stats %}
-                                        {% set planned = player.match_stats.matches_planned or 0 %}
+                                    {% if player.active_planning_stats %}
+                                        {% set planned = player.active_planning_stats.matches_planned or 0 %}
                                         {% if planned > 0 %}
                                             <div class="text-center">
                                                 <span class="badge bg-primary fs-6">{{ planned }}</span>
                                             </div>
-                                            <small class="text-muted d-block text-center">wedstrijden</small>
+                                            <small class="text-muted d-block text-center">wedstrijden (actieve planning)</small>
                                         {% else %}
                                             <span class="text-muted">Nog geen</span>
                                         {% endif %}

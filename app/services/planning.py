@@ -209,6 +209,39 @@ class PlanningVersion:
         cursor.close()
         conn.close()
 
+    @staticmethod
+    def set_active(version_id):
+        """Set a version as the active planning (non-final but current)."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # For now, we consider the most recent non-final version as active
+        # This could be enhanced later with an explicit is_active column
+        # Currently active status is determined by get_active() method
+        
+        # Verify the version exists and is not final
+        cursor.execute('''
+            SELECT id FROM planning_versions 
+            WHERE id = %s AND is_final = false AND deleted_at IS NULL
+        ''', (version_id,))
+        
+        version = cursor.fetchone()
+        if not version:
+            cursor.close()
+            conn.close()
+            raise ValueError("Version not found or is final/deleted")
+        
+        # Update the version's timestamp to make it most recent (hence active)
+        cursor.execute('''
+            UPDATE planning_versions 
+            SET created_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (version_id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+
 
 class MatchPlanning:
     """Model for managing player assignments to matches within planning versions."""

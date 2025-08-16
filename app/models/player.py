@@ -299,6 +299,24 @@ class Player:
             }
 
     @staticmethod
+    def get_active_planning_stats(player_id):
+        """Get match statistics for a player from the active planning only."""
+        from app.services.planning import PlanningVersion, MatchPlanning
+        
+        # Get the active planning version
+        active_version = PlanningVersion.get_active()
+        if not active_version:
+            return {
+                'matches_planned': 0,
+                'home_matches': 0,
+                'away_matches': 0,
+                'matches_played': 0
+            }
+        
+        # Get stats for the active version only
+        return MatchPlanning.get_player_stats(active_version['id'], player_id)
+
+    @staticmethod
     def get_availability(player_id, match_id):
         """Get player availability for a specific match."""
         conn = get_db_connection()

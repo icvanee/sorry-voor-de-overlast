@@ -14,10 +14,13 @@ def list_players():
     players_with_stats = []
     for player in all_players:
         availability_stats = Player.get_availability_stats(player['id'])
-        match_stats = Player.get_match_stats(player['id'])
+        match_stats = Player.get_match_stats(player['id'])  # Played matches (all time)
+        active_planning_stats = Player.get_active_planning_stats(player['id'])  # Planned matches (active only)
+        
         player_dict = dict(player)
         player_dict['availability_stats'] = availability_stats
         player_dict['match_stats'] = match_stats
+        player_dict['active_planning_stats'] = active_planning_stats  # Add active planning stats
         players_with_stats.append(player_dict)
     
     return render_template('players/list.html', players=players_with_stats, partner_pairs=partner_pairs)

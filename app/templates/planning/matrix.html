@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-table"></i> Planning Matrix: {{ version.name }}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('planning.view_version', version_id=version.id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Terug naar Planning
+            </a>
+            <a href="{{ url_for('planning.list_versions') }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-list"></i> Alle Planningen
+            </a>
+        </div>
+        <div class="btn-group me-2">
+            <button class="btn btn-sm btn-success" onclick="exportToPDF()">
+                <i class="fas fa-file-pdf"></i> PDF Export
+            </button>
+            <a href="{{ url_for('planning.export_matrix_csv', version_id=version.id) }}" class="btn btn-sm btn-info">
+                <i class="fas fa-file-excel"></i> CSV Export
+            </a>
+            <button class="btn btn-sm btn-secondary" onclick="window.print()">
+                <i class="fas fa-print"></i> Afdrukken
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Planning Info -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h5 class="card-title">{{ version.name }}</h5>
+                <p class="card-text">{{ version.description or 'Geen beschrijving beschikbaar' }}</p>
+            </div>
+            <div class="col-md-4 text-end">
+                {% if version.is_final %}
+                    <span class="badge bg-success fs-6">
+                        <i class="fas fa-check"></i> Definitieve Planning
+                    </span>
+                {% else %}
+                    <span class="badge bg-warning text-dark fs-6">
+                        <i class="fas fa-clock"></i> Concept Planning
+                    </span>
+                {% endif %}
+                <br>
+                <small class="text-muted">Aangemaakt: {{ version.created_at }}</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Matrix Controls -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="showHomeAway" checked>
+                    <label class="form-check-label" for="showHomeAway">
+                        Toon Thuis/Uit kleurcodering
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="compactView">
+                    <label class="form-check-label" for="compactView">
+                        Compacte weergave
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                {% if not version.is_final %}
+                <div class="alert alert-info mb-0 py-2">
+                    <small>
+                        <i class="fas fa-mouse-pointer"></i> 
+                        <strong>Tip:</strong> Klik op een cel om speler toe te wijzen/verwijderen
+                    </small>
+                </div>
+                {% else %}
+                <div class="alert alert-secondary mb-0 py-2">
+                    <small>
+                        <i class="fas fa-lock"></i> 
+                        <strong>Definitieve planning</strong> - Niet bewerkbaar
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Matrix Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-table"></i> Planning Matrix
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm matrix-table" id="planningMatrix">
+                <thead class="table-dark sticky-top">
+                    <tr>
+                        <th class="sticky-column match-column">Wedstrijd</th>
+                        {% for player in matrix_data.players %}
+                        <th class="text-center player-column" data-player-id="{{ player.id }}">
+                            <div class="player-name">
+                                {{ player.name }}
+                            </div>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for match in matrix_data.matches %}
+                    <tr class="match-row" data-match-id="{{ match.id }}">
+                        <td class="sticky-column match-info">
+                            <div class="match-details">
+                                <strong>
+                                    {{ "%02d"|format(loop.index) }}. {{ match.match_date.strftime('%d/%m') if match.match_date else 'TBD' }}
+                                </strong>
+                                <br>
+                                <small class="match-teams">
+                                    {{ match.home_team }} vs {{ match.away_team }}
+                                </small>
+                                <br>
+                                <span class="match-type-badge">
+                                    {% if match.is_cup_match %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-trophy"></i> Beker
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-users"></i> Competitie
+                                        </span>
+                                    {% endif %}
+                                    {% if match.is_home %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-home"></i> Thuis
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-plane"></i> Uit
+                                        </span>
+                                    {% endif %}
+                                    {% if match.round_name %}
+                                        <br><small class="text-muted">{{ match.round_name }}</small>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </td>
+                        {% for player in matrix_data.players %}
+                        {% set is_assigned = player.id in matrix_data.assignments and match.match_id in matrix_data.assignments[player.id] %}
+                        {% set availability = matrix_data.availability.get(player.id, {}).get(match.match_id, {}) %}
+                        {% set is_available = availability.get('is_available', True) %}
+                        <td class="text-center player-cell 
+                            {% if not is_available %}player-unavailable{% elif is_assigned %}player-assigned{% else %}player-not-assigned{% endif %}
+                            {% if match.is_home %}home-match{% else %}away-match{% endif %}
+                            {% if not version.is_final and is_available %}editable-cell{% endif %}"
+                            data-player-id="{{ player.id }}" 
+                            data-match-id="{{ match.match_id }}"
+                            {% if not version.is_final and is_available %}onclick="toggleCell(this, {{ player.id }}, {{ match.match_id }})"{% endif %}
+                            title="{% if not is_available %}Niet beschikbaar{% if availability.get('notes') %} - {{ availability.get('notes') }}{% endif %}{% else %}{{ match.home_team }} vs {{ match.away_team }}{% if is_assigned %} (Toegewezen){% endif %}{% endif %}">
+                            {% if not is_available %}
+                                <i class="fas fa-times text-danger fs-5"></i>
+                            {% elif is_assigned %}
+                                <i class="fas fa-check text-success fs-5"></i>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-secondary">
+                    <tr>
+                        <td class="sticky-column"><strong>TOTAAL WEDSTRIJDEN</strong></td>
+                        {% for player in matrix_data.players %}
+                        <td class="text-center">
+                            <strong>{{ matrix_data.stats[player.id].total_matches }}</strong>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="sticky-column"><strong>PERCENTAGE</strong></td>
+                        {% for player in matrix_data.players %}
+                        <td class="text-center">
+                            <strong>{{ "%.0f"|format(matrix_data.stats[player.id].percentage) }}%</strong>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-info-circle"></i> Legenda
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <i class="fas fa-check text-success me-2"></i>
+                <span>Ingepland voor wedstrijd</span>
+            </div>
+            <div class="col-md-3">
+                <i class="fas fa-times text-danger me-2"></i>
+                <span>Niet beschikbaar</span>
+            </div>
+            <div class="col-md-3">
+                <span class="text-muted me-2">-</span>
+                <span>Beschikbaar (niet ingepland)</span>
+            </div>
+            <div class="col-md-3">
+                <!-- Empty for spacing -->
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-md-3">
+                <span class="badge bg-success me-2">
+                    <i class="fas fa-home"></i> Thuis
+                </span>
+                <span>Thuiswedstrijd</span>
+            </div>
+            <div class="col-md-3">
+                <span class="badge bg-info me-2">
+                    <i class="fas fa-plane"></i> Uit
+                </span>
+                <span>Uitwedstrijd</span>
+            </div>
+            <div class="col-md-3">
+                <span class="badge bg-primary me-2">
+                    <i class="fas fa-users"></i> Comp
+                </span>
+                <span>Competitiewedstrijd</span>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-md-3">
+                <span class="badge bg-warning text-dark me-2">
+                    <i class="fas fa-trophy"></i> Beker
+                </span>
+                <span>Bekerwedstrijd</span>
+            </div>
+            <div class="col-md-9">
+                <small class="text-muted">
+                    * Percentages berekend op basis van totaal aantal wedstrijden in planning
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-chart-bar"></i> Planning Statistieken
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-primary">{{ matrix_data.matches|length }}</h4>
+                    <p class="mb-0">Totaal Wedstrijden</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-success">{{ matrix_data.players|length }}</h4>
+                    <p class="mb-0">Actieve Spelers</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-info">
+                        {{ "%.1f"|format((matrix_data.matches|length * 4) / matrix_data.players|length if matrix_data.players|length > 0 else 0) }}
+                    </h4>
+                    <p class="mb-0">Gem. Wedstrijden/Speler</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-warning">
+                        {% set total_assignments = 0 %}
+                        {% for player in matrix_data.players %}
+                            {% set total_assignments = total_assignments + matrix_data.stats[player.id].total_matches %}
+                        {% endfor %}
+                        {{ total_assignments }}
+                    </h4>
+                    <p class="mb-0">Totaal Toewijzingen</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Matrix Table Styling */
+.matrix-table {
+    font-size: 0.85rem;
+    margin-bottom: 0;
+}
+
+.sticky-column {
+    position: sticky;
+    left: 0;
+    background-color: white;
+    z-index: 10;
+    border-right: 2px solid #dee2e6;
+    min-width: 200px;
+}
+
+.table-dark .sticky-column {
+    background-color: #212529;
+}
+
+.table-secondary .sticky-column {
+    background-color: #e2e3e5;
+}
+
+.match-column {
+    width: 200px;
+    max-width: 200px;
+}
+
+.player-column {
+    width: 80px;
+    min-width: 80px;
+}
+
+.player-name {
+    font-size: 0.75rem;
+    line-height: 1.1;
+}
+
+.match-info {
+    padding: 8px 12px;
+}
+
+.match-details {
+    line-height: 1.3;
+}
+
+.match-teams {
+    color: #6c757d;
+    font-size: 0.7rem;
+}
+
+.match-type-badge {
+    display: block;
+    margin-top: 4px;
+}
+
+.match-type-badge .badge {
+    font-size: 0.6rem;
+    margin-right: 2px;
+}
+
+.player-cell {
+    padding: 12px 8px;
+    vertical-align: middle;
+}
+
+.player-assigned {
+    background-color: #d1f2eb;
+}
+
+.player-not-assigned {
+    background-color: #f8f9fa;
+}
+
+.player-unavailable {
+    background-color: #f8d7da;
+    cursor: not-allowed;
+}
+
+.home-match.player-assigned {
+    background-color: #d4edda;
+}
+
+.away-match.player-assigned {
+    background-color: #cce7ff;
+}
+
+/* Editable cells */
+.editable-cell {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.editable-cell:hover {
+    background-color: #fff3cd !important;
+    border: 1px solid #ffeaa7;
+}
+
+.player-assigned.editable-cell:hover {
+    background-color: #d1f2eb !important;
+}
+
+.loading-cell {
+    opacity: 0.6;
+}
+
+/* Compact view */
+.compact .matrix-table {
+    font-size: 0.7rem;
+}
+
+.compact .player-cell {
+    padding: 6px 4px;
+}
+
+.compact .match-info {
+    padding: 6px 8px;
+}
+
+/* Print styles */
+@media print {
+    .btn-toolbar,
+    .card:not(:has(.matrix-table)),
+    .card-header:not(:has(.matrix-table)) {
+        display: none !important;
+    }
+    
+    .matrix-table {
+        font-size: 0.6rem;
+    }
+    
+    .player-assigned {
+        background-color: #000 !important;
+        color: white !important;
+    }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .match-column {
+        width: 150px;
+        min-width: 150px;
+    }
+    
+    .player-column {
+        width: 60px;
+        min-width: 60px;
+    }
+    
+    .player-name {
+        font-size: 0.65rem;
+    }
+    
+    .match-type-badge .badge {
+        font-size: 0.5rem;
+    }
+}
+</style>
+
+<script>
+// Toggle compact view
+document.getElementById('compactView').addEventListener('change', function() {
+    document.body.classList.toggle('compact', this.checked);
+});
+
+// Toggle home/away color coding
+document.getElementById('showHomeAway').addEventListener('change', function() {
+    const cells = document.querySelectorAll('.player-cell');
+    cells.forEach(cell => {
+        if (this.checked) {
+            cell.classList.remove('no-color-coding');
+        } else {
+            cell.classList.add('no-color-coding');
+        }
+    });
+});
+
+// Cell editing functionality
+function toggleCell(cell, playerId, matchId) {
+    if (cell.classList.contains('loading-cell')) return;
+    
+    cell.classList.add('loading-cell');
+    
+    fetch(`{{ url_for('planning.edit_matrix_cell', version_id=version.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            player_id: playerId,
+            match_id: matchId,
+            action: 'toggle'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const icon = cell.querySelector('i') || cell.querySelector('span');
+            
+            if (data.assigned) {
+                cell.classList.add('player-assigned');
+                cell.classList.remove('player-not-assigned');
+                icon.outerHTML = '<i class="fas fa-check text-success fs-5"></i>';
+            } else {
+                cell.classList.remove('player-assigned');
+                cell.classList.add('player-not-assigned');
+                icon.outerHTML = '<span class="text-muted">-</span>';
+            }
+            
+            // Update player statistics
+            updatePlayerStats(playerId, data.stats);
+            
+            // Show success feedback
+            showToast('Planning bijgewerkt!', 'success');
+        } else {
+            showToast(data.error || 'Fout bij bijwerken planning', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Netwerkfout', 'error');
+    })
+    .finally(() => {
+        cell.classList.remove('loading-cell');
+    });
+}
+
+function updatePlayerStats(playerId, stats) {
+    // Find the player column
+    const playerColumn = document.querySelector(`th[data-player-id="${playerId}"]`);
+    if (!playerColumn) return;
+    
+    const playerIndex = Array.from(playerColumn.parentElement.children).indexOf(playerColumn);
+    
+    // Update totals row
+    const totalsRow = document.querySelector('tfoot tr:nth-child(1)');
+    if (totalsRow) {
+        const totalCell = totalsRow.children[playerIndex];
+        if (totalCell) {
+            totalCell.innerHTML = `<strong>${stats.total_matches}</strong>`;
+        }
+    }
+    
+    // Update percentage row
+    const percentageRow = document.querySelector('tfoot tr:nth-child(2)');
+    if (percentageRow) {
+        const percentageCell = percentageRow.children[playerIndex];
+        if (percentageCell) {
+            percentageCell.innerHTML = `<strong>${Math.round(stats.percentage)}%</strong>`;
+        }
+    }
+}
+
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : 'success'} toast-message`;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+        min-width: 250px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    `;
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 'check-circle'} me-2"></i>
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => toast.style.opacity = '1', 10);
+    
+    // Hide and remove toast
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(toast), 300);
+    }, 3000);
+}
+
+// Export functions (placeholder - need actual implementation)
+function exportToPDF() {
+    alert('PDF Export functionaliteit volgt in Phase 3');
+}
+
+// Add no-color-coding style
+const style = document.createElement('style');
+style.textContent = `
+    .no-color-coding.player-assigned {
+        background-color: #d1f2eb !important;
+    }
+`;
+document.head.appendChild(style);
+</script>
+
+{% endblock %}

@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from app.services.planning import PlanningVersion, MatchPlanning, AutoPlanningService
 from app.models.player import Player
 from app.models.match import Match
+from app.models.database import get_db_connection
 from datetime import datetime
 
 planning = Blueprint('planning', __name__)
@@ -386,3 +387,283 @@ def set_active_version(version_id):
         flash(f'Fout bij activeren: {str(e)}', 'error')
     
     return redirect(url_for('planning.list_versions'))
+
+@planning.route('/<int:version_id>/matrix')
+def matrix_view(version_id):
+    """Show matrix view of planning version."""
+    version = PlanningVersion.get_by_id(version_id)
+    if not version:
+        flash('Planning version not found!', 'error')
+        return redirect(url_for('planning.list_versions'))
+    
+    # Get matrix data
+    matrix_data = get_planning_matrix_data(version_id)
+    
+    return render_template('planning/matrix.html', 
+                         version=version, 
+                         matrix_data=matrix_data)
+
+@planning.route('/<int:version_id>/matrix/edit', methods=['POST'])
+def edit_matrix_cell(version_id):
+    """Toggle player assignment in matrix cell."""
+    from flask import jsonify, request
+    
+    version = PlanningVersion.get_by_id(version_id)
+    if not version or version.get('is_final'):
+        return jsonify({'error': 'Cannot edit final planning'}), 400
+    
+    player_id = request.json.get('player_id')
+    match_id = request.json.get('match_id')
+    action = request.json.get('action', 'toggle')  # 'add', 'remove', or 'toggle'
+    
+    if not player_id or not match_id:
+        return jsonify({'error': 'Player ID and Match ID required'}), 400
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Check if assignment exists
+        cursor.execute('''
+            SELECT id FROM match_planning 
+            WHERE planning_version_id = %s AND match_id = %s AND player_id = %s
+        ''', (version_id, match_id, player_id))
+        
+        existing = cursor.fetchone()
+        
+        if action == 'toggle':
+            if existing:
+                # Remove assignment
+                cursor.execute('''
+                    DELETE FROM match_planning 
+                    WHERE planning_version_id = %s AND match_id = %s AND player_id = %s
+                ''', (version_id, match_id, player_id))
+                assigned = False
+            else:
+                # Add assignment
+                cursor.execute('''
+                    INSERT INTO match_planning (planning_version_id, match_id, player_id)
+                    VALUES (%s, %s, %s)
+                ''', (version_id, match_id, player_id))
+                assigned = True
+        elif action == 'add' and not existing:
+            cursor.execute('''
+                INSERT INTO match_planning (planning_version_id, match_id, player_id)
+                VALUES (%s, %s, %s)
+            ''', (version_id, match_id, player_id))
+            assigned = True
+        elif action == 'remove' and existing:
+            cursor.execute('''
+                DELETE FROM match_planning 
+                WHERE planning_version_id = %s AND match_id = %s AND player_id = %s
+            ''', (version_id, match_id, player_id))
+            assigned = False
+        else:
+            assigned = existing is not None
+        
+        conn.commit()
+        
+        # Get updated statistics for this player
+        cursor.execute('''
+            SELECT COUNT(*) as total FROM match_planning mp
+            WHERE mp.planning_version_id = %s AND mp.player_id = %s
+        ''', (version_id, player_id))
+        total_matches = cursor.fetchone()['total']
+        
+        cursor.execute('SELECT COUNT(*) as total FROM matches')
+        total_possible = cursor.fetchone()['total']
+        percentage = (total_matches / total_possible * 100) if total_possible > 0 else 0
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'assigned': assigned,
+            'stats': {
+                'total_matches': total_matches,
+                'percentage': percentage
+            }
+        })
+        
+    except Exception as e:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@planning.route('/<int:version_id>/matrix/export/csv')
+def export_matrix_csv(version_id):
+    """Export planning matrix as CSV."""
+    from flask import Response
+    import io
+    import csv
+    
+    version = PlanningVersion.get_by_id(version_id)
+    if not version:
+        flash('Planning version not found!', 'error')
+        return redirect(url_for('planning.list_versions'))
+    
+    matrix_data = get_planning_matrix_data(version_id)
+    
+    # Create CSV content
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header row
+    header = ['Wedstrijd', 'Datum', 'Thuis/Uit', 'Type']
+    for player in matrix_data['players']:
+        header.append(player['name'])
+    writer.writerow(header)
+    
+    # Match rows
+    for i, match in enumerate(matrix_data['matches'], 1):
+        row = [
+            f"{i:02d}. {match['home_team']} vs {match['away_team']}",
+            match['match_date'].strftime('%d/%m/%Y') if match['match_date'] else 'TBD',
+            'Thuis' if match['is_home'] else 'Uit',
+            'Beker' if match.get('is_cup_match') else 'Competitie'
+        ]
+        
+        for player in matrix_data['players']:
+            player_id = player['id']
+            match_id = match['match_id']  # Changed from match['id'] to match['match_id']
+            if player_id in matrix_data['assignments'] and match_id in matrix_data['assignments'][player_id]:
+                row.append('X')
+            else:
+                row.append('')
+        
+        writer.writerow(row)
+    
+    # Statistics rows
+    total_row = ['TOTAAL WEDSTRIJDEN', '', '', '']
+    percentage_row = ['PERCENTAGE', '', '', '']
+    
+    for player in matrix_data['players']:
+        player_id = player['id']
+        stats = matrix_data['stats'][player_id]
+        total_row.append(stats['total_matches'])
+        percentage_row.append(f"{stats['percentage']:.0f}%")
+    
+    writer.writerow([])  # Empty row
+    writer.writerow(total_row)
+    writer.writerow(percentage_row)
+    
+    # Generate response
+    output.seek(0)
+    filename = f"planning_matrix_{version['name'].replace(' ', '_')}_{version['id']}.csv"
+    
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+    )
+
+def get_planning_matrix_data(version_id):
+    """Transform planning data into matrix format."""
+    # Get all matches for this planning version
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Get matches and their planning
+    cursor.execute('''
+        SELECT DISTINCT
+            m.id as match_id,
+            m.match_date,
+            m.home_team,
+            m.away_team,
+            m.is_home,
+            COALESCE(m.is_cup_match, false) as is_cup_match,
+            m.round_name
+        FROM matches m
+        LEFT JOIN match_planning mp ON m.id = mp.match_id AND mp.planning_version_id = %s
+        ORDER BY m.match_date, m.home_team
+    ''', (version_id,))
+    
+    matches = cursor.fetchall()
+    
+    # Get all active players
+    cursor.execute('''
+        SELECT id, name, is_active
+        FROM players 
+        WHERE is_active = true
+        ORDER BY name
+    ''')
+    
+    players = cursor.fetchall()
+    
+    # Get player assignments for this version
+    cursor.execute('''
+        SELECT 
+            mp.match_id,
+            mp.player_id,
+            p.name
+        FROM match_planning mp
+        JOIN players p ON mp.player_id = p.id
+        WHERE mp.planning_version_id = %s
+        ORDER BY mp.match_id, p.name
+    ''', (version_id,))
+    
+    assignments = cursor.fetchall()
+    
+    # Get player availability data
+    cursor.execute('''
+        SELECT 
+            pa.player_id,
+            pa.match_id,
+            pa.is_available,
+            pa.notes
+        FROM player_availability pa
+        WHERE EXISTS (
+            SELECT 1 FROM matches m WHERE m.id = pa.match_id
+        )
+    ''')
+    
+    availability_data = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    # Build matrix structure
+    player_assignments = {}
+    for assignment in assignments:
+        match_id = assignment['match_id']
+        player_id = assignment['player_id']
+        
+        if player_id not in player_assignments:
+            player_assignments[player_id] = set()
+        player_assignments[player_id].add(match_id)
+    
+    # Build availability structure
+    availability_map = {}
+    for avail in availability_data:
+        player_id = avail['player_id']
+        match_id = avail['match_id']
+        
+        if player_id not in availability_map:
+            availability_map[player_id] = {}
+        availability_map[player_id][match_id] = {
+            'is_available': avail['is_available'],
+            'notes': avail['notes']
+        }
+    
+    # Calculate statistics
+    player_stats = {}
+    for player in players:
+        player_id = player['id']
+        total_matches = len(player_assignments.get(player_id, set()))
+        total_possible_matches = len(matches)
+        percentage = (total_matches / total_possible_matches * 100) if total_possible_matches > 0 else 0
+        
+        player_stats[player_id] = {
+            'total_matches': total_matches,
+            'percentage': percentage
+        }
+    
+    return {
+        'matches': matches,
+        'players': players,
+        'assignments': player_assignments,
+        'availability': availability_map,
+        'stats': player_stats
+    }

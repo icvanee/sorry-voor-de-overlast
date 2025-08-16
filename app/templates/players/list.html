@@ -80,7 +80,8 @@
                                 </td>
                                 <td>
                                     {% if player.availability_stats %}
-                                        {% set available = player.availability_stats.available_matches or 0 %}
+                                        {% set available = player.availability_stats.available or 0 %}
+                                        {% set unavailable = player.availability_stats.unavailable or 0 %}
                                         {% set total = player.availability_stats.total_matches or 0 %}
                                         {% if total > 0 %}
                                             {% set percentage = (available / total * 100) | round(1) %}
@@ -103,23 +104,34 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            <small class="text-muted d-block text-center">{{ unavailable }} niet beschikbaar</small>
                                         {% else %}
-                                            <span class="text-muted">Geen wedstrijden</span>
+                                            <div class="text-center">
+                                                <span class="text-muted">Niet ingevuld</span>
+                                                <small class="text-muted d-block">
+                                                    <a href="{{ url_for('players.player_availability', player_id=player.id) }}" class="text-decoration-none">
+                                                        Beschikbaarheid instellen →
+                                                    </a>
+                                                </small>
+                                            </div>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if player.match_stats %}
-                                        {% set planned = player.match_stats.matches_planned or 0 %}
+                                    {% if player.active_planning_stats %}
+                                        {% set planned = player.active_planning_stats.matches_planned or 0 %}
                                         {% if planned > 0 %}
                                             <div class="text-center">
                                                 <span class="badge bg-primary fs-6">{{ planned }}</span>
                                             </div>
-                                            <small class="text-muted d-block text-center">wedstrijden</small>
+                                            <small class="text-muted d-block text-center">{{ active_planning_name }}</small>
                                         {% else %}
-                                            <span class="text-muted">Nog geen</span>
+                                            <div class="text-center">
+                                                <span class="text-muted">0</span>
+                                                <small class="text-muted d-block">{{ active_planning_name }}</small>
+                                            </div>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">-</span>

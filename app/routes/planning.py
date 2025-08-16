@@ -51,13 +51,11 @@ def create_version():
             
             if auto_generate and not copy_from:
                 # Auto-generate planning for new version
-                auto_planner = AutoPlanningService()
-                auto_planner.generate_planning(version_id)
+                AutoPlanningService.generate_planning(version_id)
                 flash('Automatic planning generated!', 'info')
             elif auto_generate and copy_from:
                 # Auto-generate only for non-pinned matches
-                auto_planner = AutoPlanningService()
-                auto_planner.generate_planning_selective(version_id, exclude_pinned=True)
+                AutoPlanningService.generate_planning_selective(version_id, exclude_pinned=True)
                 flash('Automatic planning generated for non-pinned matches!', 'info')
             
             return redirect(url_for('planning.view_version', version_id=version_id))
@@ -76,9 +74,43 @@ def view_version(version_id):
         flash('Planning version not found!', 'error')
         return redirect(url_for('planning.list_versions'))
     
-    # Get planning grouped by match
-    planning_data = MatchPlanning.get_version_planning(version_id)
-    return render_template('planning/view.html', version=version, planning_data=planning_data)
+    # Get planning data and transform it for the template
+    planning_raw = MatchPlanning.get_version_planning(version_id)
+    
+    # Transform flat planning data into grouped structure expected by template
+    planning_data = {}
+    for row in planning_raw:
+        match_id = row['match_id']
+        
+        if match_id not in planning_data:
+            # Create match object using SimpleNamespace for dot notation
+            from types import SimpleNamespace
+            
+            match_obj = SimpleNamespace()
+            match_obj.id = match_id
+            match_obj.match_date = row['match_date']
+            match_obj.home_team = row['home_team']
+            match_obj.away_team = row['away_team']
+            match_obj.match_number = row.get('match_number', None)
+            
+            planning_obj = SimpleNamespace()
+            planning_obj.match = match_obj
+            planning_obj.players = []
+            
+            planning_data[match_id] = planning_obj
+        
+        # Add player to this match
+        player_obj = SimpleNamespace()
+        player_obj.id = row['player_id']
+        player_obj.name = row['player_name']
+        player_obj.role = row['role']
+        
+        planning_data[match_id].players.append(player_obj)
+    
+    # Convert to list for template iteration
+    planning_list = list(planning_data.values())
+    
+    return render_template('planning/view.html', version=version, planning_data=planning_list)
 
 @planning.route('/<int:version_id>/make_final')
 def make_final(version_id):
@@ -108,8 +140,7 @@ def pin_match(version_id, match_id):
 def regenerate_planning(version_id):
     """Regenerate planning for non-pinned matches."""
     try:
-        auto_planner = AutoPlanningService()
-        auto_planner.generate_planning_selective(version_id, exclude_pinned=True)
+        AutoPlanningService.generate_planning_selective(version_id, exclude_pinned=True)
         flash('Planning regenerated for non-pinned matches!', 'success')
     except Exception as e:
         flash(f'Error regenerating planning: {e}', 'error')

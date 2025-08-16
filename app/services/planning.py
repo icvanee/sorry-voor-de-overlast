@@ -172,6 +172,22 @@ class PlanningVersion:
         return version
     
     @staticmethod
+    def get_active():
+        """Get the most recent non-final planning version (considered 'active')."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM planning_versions 
+            WHERE is_final = false AND deleted_at IS NULL 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        ''')
+        version = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return version
+    
+    @staticmethod
     def set_final(version_id):
         """Set a version as the final (definitive) planning."""
         conn = get_db_connection()
@@ -186,6 +202,39 @@ class PlanningVersion:
         cursor.execute('''
             UPDATE planning_versions 
             SET is_final = true 
+            WHERE id = %s
+        ''', (version_id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    @staticmethod
+    def set_active(version_id):
+        """Set a version as the active planning (non-final but current)."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # For now, we consider the most recent non-final version as active
+        # This could be enhanced later with an explicit is_active column
+        # Currently active status is determined by get_active() method
+        
+        # Verify the version exists and is not final
+        cursor.execute('''
+            SELECT id FROM planning_versions 
+            WHERE id = %s AND is_final = false AND deleted_at IS NULL
+        ''', (version_id,))
+        
+        version = cursor.fetchone()
+        if not version:
+            cursor.close()
+            conn.close()
+            raise ValueError("Version not found or is final/deleted")
+        
+        # Update the version's timestamp to make it most recent (hence active)
+        cursor.execute('''
+            UPDATE planning_versions 
+            SET created_at = CURRENT_TIMESTAMP
             WHERE id = %s
         ''', (version_id,))
         
@@ -345,14 +394,163 @@ class AutoPlanningService:
     
     @staticmethod
     def generate_planning(version_id, constraints=None):
-        """Generate automatic planning for a version based on constraints."""
-        # Implementation would go here - this is a complex algorithm
-        # For now, return a simple result
+        """Generate automatic planning for a version following planning rules."""
+        from app.models.match import Match
+        from app.models.player import Player
+        
+        # Get all matches for this planning version
+        matches = Match.get_all()
+        if not matches:
+            return {
+                'status': 'error',
+                'message': 'No matches found to plan',
+                'matches_planned': 0
+            }
+        
+        # Get all active players
+        players = Player.get_all()
+        if not players:
+            return {
+                'status': 'error', 
+                'message': 'No players found to assign',
+                'matches_planned': 0
+            }
+        
+        # Initialize match counts per player for fair distribution
+        player_match_counts = {}
+        for player in players:
+            player_match_counts[player['id']] = 0
+        
+        matches_planned = 0
+        
+        # Process each match according to planning rules
+        for match in matches:
+            # Apply planning rules for this match
+            selected_players = AutoPlanningService._select_players_for_match(
+                match, players, player_match_counts
+            )
+            
+            if len(selected_players) > 0:
+                # Set the planning for this match
+                player_ids = [p['id'] for p in selected_players]
+                MatchPlanning.set_planning(version_id, match['id'], player_ids)
+                
+                # Update match counts for fair distribution
+                for player in selected_players:
+                    player_match_counts[player['id']] += 1
+                
+                matches_planned += 1
+        
         return {
             'status': 'success',
-            'message': 'Auto planning not yet implemented',
-            'matches_planned': 0
+            'message': f'Planning generated for {matches_planned} matches following planning rules',
+            'matches_planned': matches_planned
         }
+    
+    @staticmethod
+    def generate_planning_selective(version_id, exclude_pinned=False):
+        """Generate planning selectively following planning rules, optionally excluding pinned matches."""
+        from app.models.match import Match
+        from app.models.player import Player
+        
+        # Get all matches for this planning version
+        matches = Match.get_all()
+        if not matches:
+            return {
+                'status': 'error',
+                'message': 'No matches found to plan',
+                'matches_planned': 0
+            }
+        
+        # Get all active players
+        players = Player.get_all()
+        if not players:
+            return {
+                'status': 'error', 
+                'message': 'No players found to assign',
+                'matches_planned': 0
+            }
+        
+        # Get pinned matches if we need to exclude them
+        pinned_match_ids = set()
+        if exclude_pinned:
+            pinned_matches = MatchPlanning.get_pinned_matches(version_id)
+            pinned_match_ids = {row['match_id'] for row in pinned_matches}
+        
+        # Get current match counts per player for fair distribution
+        player_match_counts = {}
+        existing_planning = MatchPlanning.get_version_planning(version_id)
+        
+        # Initialize counts
+        for player in players:
+            player_match_counts[player['id']] = 0
+        
+        # Count existing matches per player
+        for planning_entry in existing_planning:
+            player_id = planning_entry['player_id']
+            if player_id in player_match_counts:
+                player_match_counts[player_id] += 1
+        
+        matches_planned = 0
+        
+        # Process each match according to planning rules
+        for match in matches:
+            # Skip pinned matches if requested
+            if exclude_pinned and match['id'] in pinned_match_ids:
+                continue
+            
+            # Apply planning rules for this match
+            selected_players = AutoPlanningService._select_players_for_match(
+                match, players, player_match_counts
+            )
+            
+            if len(selected_players) > 0:
+                # Set the planning for this match
+                player_ids = [p['id'] for p in selected_players]
+                MatchPlanning.set_planning(version_id, match['id'], player_ids)
+                
+                # Update match counts for fair distribution
+                for player in selected_players:
+                    player_match_counts[player['id']] += 1
+                
+                matches_planned += 1
+        
+        return {
+            'status': 'success',
+            'message': f'Planning generated for {matches_planned} matches following planning rules',
+            'matches_planned': matches_planned
+        }
+
+    @staticmethod
+    def _select_players_for_match(match, all_players, player_match_counts):
+        """Select exactly 4 players for a match following planning rules."""
+        import random
+        from datetime import datetime, date
+        
+        # Rule 1: Filter available players (for now, assume all are available)
+        # TODO: Check actual availability based on match date
+        available_players = list(all_players)
+        
+        if len(available_players) < 4:
+            # Not enough players available - take what we have
+            return available_players
+        
+        # Rule 2: Sort players by match count for fair distribution (least matches first)
+        available_players.sort(key=lambda p: player_match_counts.get(p['id'], 0))
+        
+        # Rule 3: Partner preferences (simplified - would need partner data from database)
+        # TODO: Implement partner preference logic when partner data is available
+        
+        # Rule 4: Select exactly 4 players - prioritize those with fewest matches
+        # Take the 6 players with fewest matches, then randomly select 4 from them
+        # This balances fair distribution with some randomness
+        candidates = available_players[:min(6, len(available_players))]
+        
+        if len(candidates) <= 4:
+            return candidates
+        else:
+            # Randomly select 4 from the candidates with lowest match counts
+            return random.sample(candidates, 4)
     
     @staticmethod
     def optimize_planning(version_id):

@@ -13,9 +13,9 @@ def create_app():
             os.makedirs(data_dir)
     
     # Initialize database
-    from app.models.database import init_db
+    from app.models.database import init_database
     with app.app_context():
-        init_db()
+        init_database()
     
     # Register blueprints
     from app.routes.main import main

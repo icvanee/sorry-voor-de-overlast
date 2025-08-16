@@ -1,217 +1,274 @@
 from app.models.database import get_db_connection
-from datetime import datetime
-from config import Config
+from datetime import datetime, date
 
 class Match:
-    def __init__(self, id=None, match_date=None, opponent=None, location=None, 
-                 is_home=True):
+    def __init__(self, id=None, home_team=None, away_team=None, match_date=None, match_time=None, location=None, is_home=None):
         self.id = id
+        self.home_team = home_team
+        self.away_team = away_team
         self.match_date = match_date
-        self.opponent = opponent
+        self.match_time = match_time
         self.location = location
         self.is_home = is_home
-    
+
     @staticmethod
     def get_all():
         """Get all matches ordered by date."""
         conn = get_db_connection()
-        
-        if Config.DB_TYPE == 'postgresql':
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT * FROM matches 
-                ORDER BY match_date ASC
-            ''')
-            matches = cursor.fetchall()
-            cursor.close()
-        else:
-            matches = conn.execute('''
-                SELECT * FROM matches 
-                ORDER BY match_date ASC
-            ''').fetchall()
-        
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM matches 
+            ORDER BY match_date ASC, time ASC
+        ''')
+        matches = cursor.fetchall()
+        cursor.close()
         conn.close()
         return matches
-    
+
     @staticmethod
     def get_by_id(match_id):
-        """Get a match by ID."""
+        """Get a match by its ID."""
         conn = get_db_connection()
-        
-        if Config.DB_TYPE == 'postgresql':
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT * FROM matches WHERE id = %s
-            ''', (match_id,))
-            match = cursor.fetchone()
-            cursor.close()
-        else:
-            match = conn.execute('''
-                SELECT * FROM matches WHERE id = ?
-            ''', (match_id,)).fetchone()
-        
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM matches WHERE id = %s
+        ''', (match_id,))
+        match = cursor.fetchone()
+        cursor.close()
         conn.close()
         return match
-    
+
     @staticmethod
-    def create(match_date, opponent, location=None, is_home=True):
+    def get_home_matches():
+        """Get all home matches."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM matches 
+            WHERE is_home = true 
+            ORDER BY match_date ASC, time ASC
+        ''')
+        matches = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return matches
+
+    @staticmethod
+    def get_away_matches():
+        """Get all away matches."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM matches 
+            WHERE is_home = false 
+            ORDER BY match_date ASC, time ASC
+        ''')
+        matches = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return matches
+
+    @staticmethod
+    def create(home_team, away_team, match_date, match_time=None, location=None, is_home=True, 
+               opponent=None):
         """Create a new match."""
         conn = get_db_connection()
         
-        if Config.DB_TYPE == 'postgresql':
+        try:
             cursor = conn.cursor()
+            
+            # Handle date conversion if needed
+            if isinstance(match_date, str):
+                try:
+                    match_date = datetime.strptime(match_date, '%Y-%m-%d').date()
+                except ValueError:
+                    match_date = datetime.strptime(match_date, '%d-%m-%Y').date()
+            
+            # Determine opponent from teams
+            if not opponent:
+                if is_home:
+                    opponent = away_team
+                else:
+                    opponent = home_team
+            
             cursor.execute('''
-                INSERT INTO matches (match_date, opponent, location, is_home) 
-                VALUES (%s, %s, %s, %s) RETURNING id
-            ''', (match_date, opponent, location, is_home))
-            match_id = cursor.fetchone()[0]
+                INSERT INTO matches (home_team, away_team, match_date, time, location, 
+                                   is_home, opponent)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            ''', (home_team, away_team, match_date, match_time, location, 
+                  is_home, opponent))
+            
+            result = cursor.fetchone()
+            match_id = result['id']
             conn.commit()
             cursor.close()
-        else:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO matches (match_date, opponent, location, is_home) 
-                VALUES (?, ?, ?, ?)
-            ''', (match_date, opponent, location, is_home))
-            match_id = cursor.lastrowid
-            conn.commit()
-        
-        conn.close()
-        return match_id
-    
+            conn.close()
+            return match_id
+            
+        except Exception as e:
+            print(f"Error creating match: {e}")
+            cursor.close()
+            conn.close()
+            raise
+
     @staticmethod
-    def update(match_id, match_date=None, opponent=None, location=None, is_home=None):
-        """Update a match."""
+    def update(match_id, **kwargs):
+        """Update match details."""
         conn = get_db_connection()
         
-        # Build dynamic update query
+        # Build dynamic query based on provided parameters
         updates = []
         params = []
         
-        if match_date is not None:
-            updates.append('match_date = %s' if Config.DB_TYPE == 'postgresql' else 'match_date = ?')
-            params.append(match_date)
-        if opponent is not None:
-            updates.append('opponent = %s' if Config.DB_TYPE == 'postgresql' else 'opponent = ?')
-            params.append(opponent)
-        if location is not None:
-            updates.append('location = %s' if Config.DB_TYPE == 'postgresql' else 'location = ?')
-            params.append(location)
-        if is_home is not None:
-            updates.append('is_home = %s' if Config.DB_TYPE == 'postgresql' else 'is_home = ?')
-            params.append(is_home)
+        # Map to actual column names in database
+        field_mapping = {
+            'match_time': 'time',
+            'match_date': 'match_date',
+            'opponent': 'opponent', 
+            'location': 'location',
+            'is_home': 'is_home',
+            'home_team': 'home_team',
+            'away_team': 'away_team'
+        }
+        
+        for field, value in kwargs.items():
+            if field in field_mapping and value is not None:
+                db_field = field_mapping[field]
+                updates.append(f'{db_field} = %s')
+                params.append(value)
         
         if not updates:
             conn.close()
             return
         
         params.append(match_id)
-        param_placeholder = '%s' if Config.DB_TYPE == 'postgresql' else '?'
+        query = f'''UPDATE matches SET {", ".join(updates)} WHERE id = %s'''
         
-        query = f'''UPDATE matches SET {", ".join(updates)} WHERE id = {param_placeholder}'''
-        
-        if Config.DB_TYPE == 'postgresql':
-            cursor = conn.cursor()
-            cursor.execute(query, params)
-            conn.commit()
-            cursor.close()
-        else:
-            conn.execute(query, params)
-            conn.commit()
-        
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        conn.commit()
+        cursor.close()
         conn.close()
-    
+
     @staticmethod
     def delete(match_id):
-        """Delete a match."""
+        """Delete a match and its related data."""
         conn = get_db_connection()
+        cursor = conn.cursor()
         
-        if Config.DB_TYPE == 'postgresql':
-            cursor = conn.cursor()
-            # First delete related planning entries
-            cursor.execute('DELETE FROM match_planning WHERE match_id = %s', (match_id,))
-            cursor.execute('DELETE FROM player_availability WHERE match_id = %s', (match_id,))
-            cursor.execute('DELETE FROM matches WHERE id = %s', (match_id,))
-            conn.commit()
-            cursor.close()
-        else:
-            # First delete related planning entries
-            conn.execute('DELETE FROM match_planning WHERE match_id = ?', (match_id,))
-            conn.execute('DELETE FROM player_availability WHERE match_id = ?', (match_id,))
-            conn.execute('DELETE FROM matches WHERE id = ?', (match_id,))
-            conn.commit()
+        # First delete related player availability
+        cursor.execute('DELETE FROM player_availability WHERE match_id = %s', (match_id,))
         
+        # Delete related match planning
+        cursor.execute('DELETE FROM match_planning WHERE match_id = %s', (match_id,))
+        
+        # Finally delete the match
+        cursor.execute('DELETE FROM matches WHERE id = %s', (match_id,))
+        
+        conn.commit()
+        cursor.close()
         conn.close()
-    
+
     @staticmethod
-    def get_upcoming():
+    def get_upcoming(limit=None):
         """Get upcoming matches."""
-        today = datetime.now().strftime('%Y-%m-%d')
         conn = get_db_connection()
+        cursor = conn.cursor()
         
-        if Config.DB_TYPE == 'postgresql':
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT * FROM matches 
-                WHERE match_date >= %s
-                ORDER BY match_date ASC
-            ''', (today,))
-            matches = cursor.fetchall()
-            cursor.close()
-        else:
-            matches = conn.execute('''
-                SELECT * FROM matches 
-                WHERE match_date >= ?
-                ORDER BY match_date ASC
-            ''', (today,)).fetchall()
+        query = '''
+            SELECT * FROM matches 
+            WHERE match_date >= %s 
+            ORDER BY match_date ASC, time ASC
+        '''
         
+        params = [date.today()]
+        if limit:
+            query += ' LIMIT %s'
+            params.append(limit)
+        
+        cursor.execute(query, params)
+        matches = cursor.fetchall()
+        cursor.close()
         conn.close()
         return matches
-    
+
     @staticmethod
-    def get_home_matches():
-        """Get all home matches."""
+    def get_past(limit=None):
+        """Get past matches."""
         conn = get_db_connection()
+        cursor = conn.cursor()
         
-        if Config.DB_TYPE == 'postgresql':
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT * FROM matches 
-                WHERE is_home = true
-                ORDER BY match_date ASC
-            ''')
-            matches = cursor.fetchall()
-            cursor.close()
-        else:
-            matches = conn.execute('''
-                SELECT * FROM matches 
-                WHERE is_home = 1
-                ORDER BY match_date ASC
-            ''').fetchall()
+        query = '''
+            SELECT * FROM matches 
+            WHERE match_date < %s 
+            ORDER BY match_date DESC, time DESC
+        '''
         
+        params = [date.today()]
+        if limit:
+            query += ' LIMIT %s'
+            params.append(limit)
+        
+        cursor.execute(query, params)
+        matches = cursor.fetchall()
+        cursor.close()
         conn.close()
         return matches
-    
+
     @staticmethod
-    def get_away_matches():
-        """Get all away matches."""
+    def get_by_date_range(start_date, end_date):
+        """Get matches within a date range."""
         conn = get_db_connection()
-        
-        if Config.DB_TYPE == 'postgresql':
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT * FROM matches 
-                WHERE is_home = false
-                ORDER BY match_date ASC
-            ''')
-            matches = cursor.fetchall()
-            cursor.close()
-        else:
-            matches = conn.execute('''
-                SELECT * FROM matches 
-                WHERE is_home = 0
-                ORDER BY match_date ASC
-            ''').fetchall()
-        
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM matches 
+            WHERE match_date >= %s AND match_date <= %s 
+            ORDER BY match_date ASC, time ASC
+        ''', (start_date, end_date))
+        matches = cursor.fetchall()
+        cursor.close()
         conn.close()
         return matches
+
+    @staticmethod
+    def exists(home_team, away_team, match_date):
+        """Check if a match already exists."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(*) as count FROM matches 
+            WHERE home_team = %s AND away_team = %s AND match_date = %s
+        ''', (home_team, away_team, match_date))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return result['count'] > 0
+
+    @staticmethod
+    def get_statistics():
+        """Get match statistics."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT 
+                COUNT(*) as total_matches,
+                COUNT(CASE WHEN is_home = true THEN 1 END) as home_matches,
+                COUNT(CASE WHEN is_home = false THEN 1 END) as away_matches,
+                COUNT(CASE WHEN match_date >= %s THEN 1 END) as upcoming_matches,
+                COUNT(CASE WHEN match_date < %s THEN 1 END) as past_matches
+            FROM matches
+        ''', (date.today(), date.today()))
+        
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        return {
+            'total_matches': result['total_matches'] or 0,
+            'home_matches': result['home_matches'] or 0,
+            'away_matches': result['away_matches'] or 0,
+            'upcoming_matches': result['upcoming_matches'] or 0,
+            'past_matches': result['past_matches'] or 0,
+        }

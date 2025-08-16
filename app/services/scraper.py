@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import re
 from app.models.match import Match
+from app.models.player import Player
 from flask import current_app
 
 class TeamBeheerScraper:
@@ -96,6 +97,145 @@ class TeamBeheerScraper:
             import traceback
             traceback.print_exc()
             return []
+    
+    def scrape_players(self):
+        """Scrape players from teambeheer.nl"""
+        try:
+            print(f"Scraping players from: {self.base_url}")
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            
+            response = requests.get(self.base_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            players = []
+            
+            # Look for the "Spelers" header
+            spelers_header = soup.find('h2', string=re.compile(r'Spelers', re.I))
+            if not spelers_header:
+                spelers_header = soup.find('h2', class_='ui header', string=re.compile(r'Spelers', re.I))
+            
+            if spelers_header:
+                print("Found 'Spelers' header, looking for player table...")
+                
+                # Find the table after the spelers header
+                player_table = None
+                
+                # Look for the next table element
+                for sibling in spelers_header.find_next_siblings():
+                    if sibling.name == 'table':
+                        player_table = sibling
+                        break
+                    # Also check for tables within divs
+                    table_in_div = sibling.find('table')
+                    if table_in_div:
+                        player_table = table_in_div
+                        break
+                
+                if player_table:
+                    print("Found player table, processing rows...")
+                    rows = player_table.find_all('tr')
+                    
+                    for row_idx, row in enumerate(rows):
+                        cells = row.find_all(['td', 'th'])
+                        if len(cells) >= 1:
+                            player_data = self._parse_player_row(cells, row_idx)
+                            if player_data:
+                                players.append(player_data)
+                                print(f"Found player: {player_data['name']}")
+            
+            print(f"Total players found: {len(players)}")
+            return players
+            
+        except Exception as e:
+            print(f"Error scraping players: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def _parse_player_row(self, cells, row_idx=0):
+        """Parse a single player row from the table"""
+        try:
+            # Extract text from cells
+            cell_texts = [cell.get_text(strip=True) for cell in cells]
+            
+            if len(cell_texts) < 1:
+                return None
+            
+            print(f"Player row {row_idx}: {cell_texts}")
+            
+            # Skip header rows
+            if any(header in ' '.join(cell_texts).lower() for header in ['naam', 'speler', 'singles', 'winst']):
+                return None
+            
+            # First cell should be the player name
+            raw_name = cell_texts[0].strip()
+            
+            # Skip empty or invalid names
+            if not raw_name or len(raw_name) < 2 or raw_name.lower() in ['totaal', 'total']:
+                return None
+            
+            # Extract role and clean name
+            player_name, role = self._parse_player_name_and_role(raw_name)
+            
+            # Extract additional info if available
+            singles_played = None
+            wins = None
+            
+            if len(cell_texts) >= 2:
+                try:
+                    singles_played = int(cell_texts[1]) if cell_texts[1].isdigit() else None
+                except:
+                    pass
+            
+            if len(cell_texts) >= 3:
+                try:
+                    wins = int(cell_texts[2]) if cell_texts[2].isdigit() else None
+                except:
+                    pass
+            
+            return {
+                'name': player_name,
+                'role': role,
+                'singles_played': singles_played,
+                'wins': wins
+            }
+            
+        except Exception as e:
+            print(f"Error parsing player row {row_idx}: {e}")
+            return None
+    
+    def _parse_player_name_and_role(self, raw_name):
+        """Parse player name and extract role from teambeheer.nl format"""
+        # Role mappings based on the provided information
+        role_mappings = {
+            'C': 'Captain',
+            'RC': 'Reserve Captain', 
+            'Bestuurslid': 'Bestuurslid'
+        }
+        
+        # Clean the name and extract role
+        name = raw_name
+        role = 'speler'  # Default role
+        
+        # Check for specific role indicators
+        if 'Bestuurslid' in name:
+            role = 'Bestuurslid'
+            name = name.replace('Bestuurslid', '').strip()
+        elif name.endswith('RC'):
+            role = 'Reserve Captain'
+            name = name[:-2].strip()
+        elif name.endswith('C'):
+            role = 'Captain'
+            name = name[:-1].strip()
+        
+        # Clean up extra spaces
+        name = ' '.join(name.split())
+        
+        return name, role
     
     def _parse_match_row(self, cells, row_idx=0):
         """Parse a single match row from the table"""
@@ -234,11 +374,11 @@ class TeamBeheerScraper:
             
             # Determine if it's a cup match (bekerwedstrijd)
             # Cup matches have match numbers starting with 'b' (b1, b2, etc.)
-            is_friendly = False
+            is_cup_match = False
             if match_number:
                 match_number_clean = match_number.strip().lower()
                 if match_number_clean.startswith('b'):
-                    is_friendly = True  # Cup matches are marked as friendly to distinguish from regular competition
+                    is_cup_match = True  # Cup matches are marked for proper display
                     print(f"Detected cup match (bekerwedstrijd): {match_number}")
             
             return {
@@ -247,7 +387,7 @@ class TeamBeheerScraper:
                 'home_team': home_team,
                 'away_team': away_team,
                 'is_home': is_home,
-                'is_friendly': is_friendly,
+                'is_cup_match': is_cup_match,
                 'venue': current_app.config['VENUE'] if is_home else ''
             }
             
@@ -352,13 +492,12 @@ class TeamBeheerScraper:
                     print(f"Importing: {match_data['home_team']} vs {match_data['away_team']} on {match_data['date']}")
                     
                     Match.create(
-                        match_number=match_data['match_number'],
-                        date=match_data['date'],
                         home_team=match_data['home_team'],
                         away_team=match_data['away_team'],
+                        match_date=match_data['date'],
                         is_home=match_data['is_home'],
-                        is_friendly=match_data['is_friendly'],
-                        venue=match_data['venue']
+                        is_cup_match=match_data['is_cup_match'],
+                        location=match_data['venue']
                     )
                     imported_count += 1
                     existing_keys.add(match_key)  # Add to prevent duplicates in this session
@@ -422,13 +561,12 @@ def import_static_matches():
                 venue = 'Café De Vrijbuiter' if is_home else ''
                 
                 Match.create(
-                    match_number=match_data['match_number'],
-                    date=match_data['date'],
                     home_team=match_data['home_team'],
                     away_team=match_data['away_team'],
+                    match_date=match_data['date'],
                     is_home=is_home,
-                    is_friendly=match_data['is_friendly'],
-                    venue=venue
+                    is_cup_match=match_data.get('is_friendly', False),  # Static matches use is_friendly for cup matches
+                    location=venue
                 )
                 imported_count += 1
                 

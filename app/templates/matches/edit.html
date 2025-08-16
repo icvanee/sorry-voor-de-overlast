@@ -36,7 +36,7 @@
                     <input type="date" 
                            id="date" 
                            name="date" 
-                           value="{{ match.date }}"
+                           value="{{ match.match_date }}"
                            required 
                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
@@ -80,7 +80,7 @@
                 <input type="text" 
                        id="venue" 
                        name="venue" 
-                       value="{{ match.venue or '' }}"
+                       value="{{ match.location or '' }}"
                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                        placeholder="Bijv. Café De Kroeg, Straatnaam 123">
             </div>

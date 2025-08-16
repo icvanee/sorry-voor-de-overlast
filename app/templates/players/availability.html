@@ -75,26 +75,25 @@
                                 {% set availability = availability_data.get(match.id) %}
                                 <tr class="{% if match.is_home %}table-success{% else %}table-warning{% endif %}">
                                     <td>
-                                        <strong>{{ match.date }}</strong>
-                                        {% if match.match_number %}
-                                            <br><small class="text-muted">Ronde {{ match.match_number }}</small>
+                                        <strong>{{ match.match_date }}</strong>
+                                        {% if match.match_time %}
+                                            <br><small class="text-muted">{{ match.match_time }}</small>
                                         {% endif %}
                                     </td>
                                     <td>
                                         <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
-                                        {% if match.venue %}
-                                            <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.venue }}</small>
+                                        {% if match.location %}
+                                            <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.location }}</small>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if match.is_friendly %}
-                                            {% if match.match_number and match.match_number.lower().startswith('b') %}
-                                                <span class="badge bg-warning text-dark">Beker</span>
-                                            {% else %}
-                                                <span class="badge bg-info">Vriendschappelijk</span>
-                                            {% endif %}
+                                        {% if match.is_cup_match %}
+                                            <span class="badge bg-warning text-dark">Beker</span>
                                         {% else %}
                                             <span class="badge bg-primary">Competitie</span>
+                                        {% endif %}
+                                        {% if match.round_name %}
+                                            <br><small class="text-muted">{{ match.round_name }}</small>
                                         {% endif %}
                                     </td>
                                     <td>

@@ -35,13 +35,13 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-gray-50 p-4 rounded">
                 <h3 class="font-semibold text-gray-700 mb-2">📅 Datum</h3>
-                <p class="text-lg">{{ match.date }}</p>
+                <p class="text-lg">{{ match.match_date }}</p>
             </div>
             <div class="bg-gray-50 p-4 rounded">
                 <h3 class="font-semibold text-gray-700 mb-2">📍 Locatie</h3>
                 <p class="text-lg">
-                    {% if match.venue %}
-                        {{ match.venue }}
+                    {% if match.location %}
+                        {{ match.location }}
                     {% else %}
                         <span class="text-gray-500">Niet opgegeven</span>
                     {% endif %}
@@ -145,7 +145,7 @@
             <br><br>
             <strong>{{ match.home_team }} vs {{ match.away_team }}</strong>
             <br>
-            {{ match.date }}
+            {{ match.match_date }}
             <br><br>
             <span class="text-red-600">Deze actie kan niet ongedaan worden gemaakt.</span>
         </p>

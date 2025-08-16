@@ -304,7 +304,7 @@ class Player:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT available, notes
+            SELECT is_available, notes
             FROM player_availability 
             WHERE player_id = %s AND match_id = %s
         ''', (player_id, match_id))
@@ -314,19 +314,19 @@ class Player:
         return result
 
     @staticmethod
-    def set_availability(player_id, match_id, available, notes=None):
+    def set_availability(player_id, match_id, is_available, notes=None):
         """Set player availability for a specific match."""
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO player_availability (player_id, match_id, available, notes)
+            INSERT INTO player_availability (player_id, match_id, is_available, notes)
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (player_id, match_id)
             DO UPDATE SET 
-                available = EXCLUDED.available,
+                is_available = EXCLUDED.is_available,
                 notes = EXCLUDED.notes,
                 updated_at = CURRENT_TIMESTAMP
-        ''', (player_id, match_id, available, notes))
+        ''', (player_id, match_id, is_available, notes))
         conn.commit()
         cursor.close()
         conn.close()

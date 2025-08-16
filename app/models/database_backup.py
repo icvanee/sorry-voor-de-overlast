@@ -207,3 +207,152 @@ def create_tables_postgresql(cursor):
             UNIQUE(player_id, match_id)
         )
     ''')
+                planning_version_id INTEGER REFERENCES planning_versions(id) ON DELETE CASCADE,
+                match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
+                player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+                is_pinned BOOLEAN DEFAULT false,
+                actually_played BOOLEAN DEFAULT false,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(planning_version_id, match_id, player_id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS player_availability (
+                id SERIAL PRIMARY KEY,
+                player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+                match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
+                is_available BOOLEAN NOT NULL,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(player_id, match_id)
+            )
+        ''')
+        
+        # Create indexes for better performance
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_players_active ON players(is_active)
+        ''')
+        
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(match_date)
+        ''')
+        
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_planning_versions_final ON planning_versions(is_final)
+        ''')
+        
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_match_planning_version ON match_planning(planning_version_id)
+        ''')
+        
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_match_planning_match ON match_planning(match_id)
+        ''')
+        
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_player_availability_player ON player_availability(player_id)
+        ''')
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+    except Exception as e:
+        print(f"Error initializing database: {e}")
+        cursor.close()
+        conn.close()
+        raise
+
+def seed_initial_data():
+    """Seed the database with initial data for development/testing."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Check if we already have data
+        cursor.execute("SELECT COUNT(*) as count FROM players")
+        player_count = cursor.fetchone()['count']
+        
+        if player_count == 0:
+            print("Seeding initial players...")
+            
+            # Add some initial players
+            initial_players = [
+                ('John Doe', 'john@example.com', '+31612345678', 'speler'),
+                ('Jane Smith', 'jane@example.com', '+31687654321', 'captain'),
+                ('Bob Johnson', 'bob@example.com', '+31656789123', 'speler'),
+                ('Alice Brown', 'alice@example.com', '+31645123789', 'speler'),
+                ('Charlie Wilson', 'charlie@example.com', '+31634567890', 'speler'),
+                ('Diana Davis', 'diana@example.com', '+31623456789', 'speler'),
+            ]
+            
+            for name, email, phone, role in initial_players:
+                cursor.execute('''
+                    INSERT INTO players (name, email, phone, role)
+                    VALUES (%s, %s, %s, %s)
+                ''', (name, email, phone, role))
+        
+        # Check if we have a default planning version
+        cursor.execute("SELECT COUNT(*) as count FROM planning_versions")
+        version_count = cursor.fetchone()['count']
+        
+        if version_count == 0:
+            print("Creating default planning version...")
+            cursor.execute('''
+                INSERT INTO planning_versions (name, description, is_final)
+                VALUES (%s, %s, %s)
+            ''', ('Definitieve Planning', 'De definitieve teamplanning voor het seizoen', True))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("Database seeded successfully")
+        
+    except Exception as e:
+        print(f"Error seeding database: {e}")
+        cursor.close()
+        conn.close()
+        raise
+
+def reset_database():
+    """Reset the database by dropping and recreating all tables."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Drop tables in reverse order due to foreign key constraints
+        tables_to_drop = [
+            'player_availability',
+            'match_planning', 
+            'planning_versions',
+            'matches',
+            'players'
+        ]
+        
+        for table in tables_to_drop:
+            cursor.execute(f'DROP TABLE IF EXISTS {table} CASCADE')
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        # Recreate tables
+        init_database()
+        seed_initial_data()
+        
+        print("Database reset successfully")
+        
+    except Exception as e:
+        print(f"Error resetting database: {e}")
+        cursor.close()
+        conn.close()
+        raise
+
+if __name__ == "__main__":
+    print("Initializing database...")
+    init_database()
+    seed_initial_data()
+    print("Database setup complete!")

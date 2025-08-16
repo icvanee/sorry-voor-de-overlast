@@ -123,11 +123,12 @@ class Match:
         
         # Map to actual column names in database
         field_mapping = {
-            'match_time': 'time',
+            'match_time': 'match_time',
             'match_date': 'match_date',
             'opponent': 'opponent', 
             'location': 'location',
             'is_home': 'is_home',
+            'is_cup_match': 'is_cup_match',
             'home_team': 'home_team',
             'away_team': 'away_team'
         }

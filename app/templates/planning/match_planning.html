@@ -18,9 +18,9 @@
                     {{ match.home_team }} vs {{ match.away_team }}
                 </h2>
                 <p class="text-gray-500">{{ match.match_date }}</p>
-                {% if match.venue %}
+                {% if match.location %}
                 <p class="text-sm text-gray-500">
-                    <i class="fas fa-map-marker-alt"></i> {{ match.venue }}
+                    <i class="fas fa-map-marker-alt"></i> {{ match.location }}
                 </p>
                 {% endif %}
             </div>
@@ -41,8 +41,8 @@
             <div class="bg-gray-50 p-3 rounded">
                 <h4 class="font-semibold text-gray-700 text-sm">Type</h4>
                 <p class="text-lg">
-                    {% if match.is_friendly %}
-                        <span class="text-orange-600">🤝 Vriendschappelijk</span>
+                    {% if match.is_cup_match %}
+                        <span class="text-orange-600">🏆 Beker</span>
                     {% else %}
                         <span class="text-purple-600">🏆 Competitie</span>
                     {% endif %}

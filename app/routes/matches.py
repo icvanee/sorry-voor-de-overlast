@@ -20,7 +20,7 @@ def add_match():
         home_team = request.form.get('home_team')
         away_team = request.form.get('away_team')
         is_home = request.form.get('is_home') == 'true'
-        is_friendly = request.form.get('is_friendly') == 'true'
+        is_cup_match = request.form.get('is_cup_match') == 'true'
         venue = request.form.get('venue', '')
         
         if not all([date, home_team, away_team]):
@@ -28,7 +28,14 @@ def add_match():
             return redirect(url_for('matches.add_match'))
         
         try:
-            Match.create(match_number, date, home_team, away_team, is_home, is_friendly, venue)
+            Match.create(
+                home_team=home_team,
+                away_team=away_team, 
+                match_date=date,
+                is_home=is_home,
+                is_cup_match=is_cup_match,
+                location=venue
+            )
             flash(f'Match added successfully!', 'success')
             return redirect(url_for('matches.list_matches'))
         except Exception as e:
@@ -45,20 +52,25 @@ def edit_match(match_id):
         return redirect(url_for('matches.list_matches'))
     
     if request.method == 'POST':
-        match_number = request.form.get('match_number')
-        date = request.form.get('date')
+        match_date = request.form.get('date')
         home_team = request.form.get('home_team')
         away_team = request.form.get('away_team')
-        is_home = request.form.get('is_home') == 'true'
-        is_friendly = request.form.get('is_friendly') == 'true'
-        venue = request.form.get('venue', '')
+        location = request.form.get('location', '')
+        is_cup_match = request.form.get('is_cup_match') == 'true'
         
-        if not all([date, home_team, away_team]):
+        if not all([match_date, home_team, away_team]):
             flash('Date, home team, and away team are required!', 'error')
             return redirect(url_for('matches.edit_match', match_id=match_id))
         
         try:
-            Match.update(match_id, match_number, date, home_team, away_team, is_home, is_friendly, venue)
+            Match.update(
+                match_id,
+                match_date=match_date,
+                home_team=home_team,
+                away_team=away_team,
+                location=location,
+                is_cup_match=is_cup_match
+            )
             flash(f'Match updated successfully!', 'success')
             return redirect(url_for('matches.list_matches'))
         except Exception as e:

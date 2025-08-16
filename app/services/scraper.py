@@ -560,12 +560,16 @@ def import_static_matches():
                 is_home = match_data['home_team'] == 'Sorry voor de overlast'
                 venue = 'Café De Vrijbuiter' if is_home else ''
                 
+                # Check if this is a cup match based on match number starting with 'b'
+                match_number = match_data.get('match_number', '')
+                is_cup_match = match_number.lower().startswith('b') if match_number else False
+                
                 Match.create(
                     home_team=match_data['home_team'],
                     away_team=match_data['away_team'],
                     match_date=match_data['date'],
                     is_home=is_home,
-                    is_cup_match=match_data.get('is_friendly', False),  # Static matches use is_friendly for cup matches
+                    is_cup_match=is_cup_match,
                     location=venue
                 )
                 imported_count += 1

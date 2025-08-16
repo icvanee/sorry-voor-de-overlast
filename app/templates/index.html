@@ -132,12 +132,10 @@
                             <div class="list-group-item">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1">
-                                        {% if match.is_friendly %}
-                                            {% if match.match_number and match.match_number.lower().startswith('b') %}
-                                                <span class="badge bg-warning text-dark me-2">Beker</span>
-                                            {% else %}
-                                                <span class="badge bg-info me-2">Vriendschappelijk</span>
-                                            {% endif %}
+                                        {% if match.is_cup_match %}
+                                            <span class="badge bg-warning text-dark me-2">Beker</span>
+                                        {% else %}
+                                            <span class="badge bg-primary me-2">Competitie</span>
                                         {% endif %}
                                         {{ match.home_team }} vs {{ match.away_team }}
                                     </h6>

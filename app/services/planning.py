@@ -526,14 +526,27 @@ class AutoPlanningService:
         """Select exactly 4 players for a match following planning rules."""
         import random
         from datetime import datetime, date
+        from app.models.player import Player
         
-        # Rule 1: Filter available players (for now, assume all are available)
-        # TODO: Check actual availability based on match date
-        available_players = list(all_players)
+        # Rule 1: Filter available players based on player availability
+        available_players = []
+        for player in all_players:
+            # Check if player has marked themselves as unavailable for this match
+            availability = Player.get_availability(player['id'], match['id'])
+            is_available = not availability or availability.get('is_available', True)
+            
+            if is_available:
+                available_players.append(player)
         
         if len(available_players) < 4:
-            # Not enough players available - take what we have
-            return available_players
+            # Not enough available players - add some unavailable ones to reach minimum
+            unavailable_players = [p for p in all_players if p not in available_players]
+            # Sort unavailable by lowest match count
+            unavailable_players.sort(key=lambda p: player_match_counts.get(p['id'], 0))
+            
+            # Add unavailable players to reach 4 total if possible
+            needed = 4 - len(available_players)
+            available_players.extend(unavailable_players[:needed])
         
         # Rule 2: Sort players by match count for fair distribution (least matches first)
         available_players.sort(key=lambda p: player_match_counts.get(p['id'], 0))
@@ -541,7 +554,11 @@ class AutoPlanningService:
         # Rule 3: Partner preferences (simplified - would need partner data from database)
         # TODO: Implement partner preference logic when partner data is available
         
-        # Rule 4: Select exactly 4 players - prioritize those with fewest matches
+        # Rule 4: Home/Away balance - prefer players who need more of this match type
+        is_home_match = match.get('is_home', True)
+        # TODO: Implement home/away balance logic when match history is available
+        
+        # Rule 5: Select exactly 4 players - prioritize those with fewest matches
         # Take the 6 players with fewest matches, then randomly select 4 from them
         # This balances fair distribution with some randomness
         candidates = available_players[:min(6, len(available_players))]

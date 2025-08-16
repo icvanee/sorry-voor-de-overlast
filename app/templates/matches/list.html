@@ -46,7 +46,7 @@
                             <div class="btn-group btn-group-sm w-100">
                                 <a href="{{ url_for('matches.match_detail', match_id=match.id) }}" 
                                    class="btn btn-outline-primary">Details</a>
-                                <a href="{{ url_for('planning.match_planning', match_id=match.id) }}" 
+                                <a href="{{ url_for('single_planning.match_detail', match_id=match.id) }}" 
                                    class="btn btn-outline-success">Planning</a>
                             </div>
                         </div>
@@ -124,7 +124,7 @@
                                            class="btn btn-outline-secondary" title="Bewerken">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="{{ url_for('planning.match_planning', match_id=match.id) }}" 
+                                        <a href="{{ url_for('single_planning.match_detail', match_id=match.id) }}" 
                                            class="btn btn-outline-success" title="Planning">
                                             <i class="fas fa-users"></i>
                                         </a>

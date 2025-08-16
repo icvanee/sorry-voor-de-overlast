@@ -7,25 +7,20 @@
     </h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
-            <a href="{{ url_for('planning.view_version', version_id=version.id) }}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> Terug naar Planning
+            <a href="{{ url_for('single_planning.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Terug naar Dashboard
             </a>
-            <a href="{{ url_for('planning.list_ver    // Update match row highlighting
-    if (playerCount > 4) {
-        matchRow.classList.add('table-danger');
-    } else {
-        matchRow.classList.remove('table-danger');
-    }) }}" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-list"></i> Alle Planningen
-            </a>
+            <button class="btn btn-sm btn-success" onclick="regeneratePlanning()">
+                <i class="fas fa-sync"></i> Regenereer Planning
+            </button>
         </div>
         <div class="btn-group me-2">
             <button class="btn btn-sm btn-success" onclick="exportToPDF()">
                 <i class="fas fa-file-pdf"></i> PDF Export
             </button>
-            <a href="{{ url_for('planning.export_matrix_csv', version_id=version.id) }}" class="btn btn-sm btn-info">
+            <button class="btn btn-sm btn-info" onclick="exportToCSV()">
                 <i class="fas fa-file-excel"></i> CSV Export
-            </a>
+            </button>
             <button class="btn btn-sm btn-secondary" onclick="window.print()">
                 <i class="fas fa-print"></i> Afdrukken
             </button>
@@ -42,17 +37,11 @@
                 <p class="card-text">{{ version.description or 'Geen beschrijving beschikbaar' }}</p>
             </div>
             <div class="col-md-4 text-end">
-                {% if version.is_final %}
-                    <span class="badge bg-success fs-6">
-                        <i class="fas fa-check"></i> Definitieve Planning
-                    </span>
-                {% else %}
-                    <span class="badge bg-warning text-dark fs-6">
-                        <i class="fas fa-clock"></i> Concept Planning
-                    </span>
-                {% endif %}
+                <span class="badge bg-primary fs-6">
+                    <i class="fas fa-star"></i> Single Planning System
+                </span>
                 <br>
-                <small class="text-muted">Aangemaakt: {{ version.created_at }}</small>
+                <small class="text-muted">Status: {{ version.created_at }}</small>
             </div>
         </div>
     </div>
@@ -79,21 +68,12 @@
                 </div>
             </div>
             <div class="col-md-4">
-                {% if not version.is_final %}
                 <div class="alert alert-info mb-0 py-2">
                     <small>
                         <i class="fas fa-mouse-pointer"></i> 
                         <strong>Tip:</strong> Klik op een cel om speler toe te wijzen/verwijderen
                     </small>
                 </div>
-                {% else %}
-                <div class="alert alert-secondary mb-0 py-2">
-                    <small>
-                        <i class="fas fa-lock"></i> 
-                        <strong>Definitieve planning</strong> - Niet bewerkbaar
-                    </small>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -125,19 +105,25 @@
                     {% for match in matrix_data.matches %}
                     {% set match_players = [] %}
                     {% for player in matrix_data.players %}
-                        {% if player.id in matrix_data.assignments and match.match_id in matrix_data.assignments[player.id] %}
+                        {% if player.id in matrix_data.assignments and match.id in matrix_data.assignments[player.id] %}
                             {% set _ = match_players.append(player.id) %}
                         {% endif %}
                     {% endfor %}
                     {% set match_player_count = match_players|length %}
-                    <tr class="match-row {% if match_player_count > 4 %}table-danger{% endif %}" data-match-id="{{ match.match_id }}" data-player-count="{{ match_player_count }}">
+                    <tr class="match-row 
+                        {% if match_player_count > 4 %}table-warning{% elif match_player_count < 4 %}table-danger{% endif %}" 
+                        data-match-id="{{ match.id }}" data-player-count="{{ match_player_count }}">
                         <td class="sticky-column match-info">
                             <div class="match-details">
                                 <strong>
                                     {{ "%02d"|format(loop.index) }}. {{ match.match_date.strftime('%d/%m') if match.match_date else 'TBD' }}
                                     {% if match_player_count > 4 %}
-                                        <span class="badge bg-danger ms-1" title="Meer dan 4 spelers - regel overtreding!">
+                                        <span class="badge bg-warning text-dark ms-1" title="Meer dan 4 spelers - handmatig toegestaan maar let op!">
                                             <i class="fas fa-exclamation-triangle"></i> {{ match_player_count }}
+                                        </span>
+                                    {% elif match_player_count < 4 %}
+                                        <span class="badge bg-danger ms-1" title="Minder dan 4 spelers - regel overtreding!">
+                                            <i class="fas fa-times-circle"></i> {{ match_player_count }}
                                         </span>
                                     {% endif %}
                                 </strong>
@@ -147,15 +133,9 @@
                                 </small>
                                 <br>
                                 <span class="match-type-badge">
-                                    {% if match.is_cup_match %}
-                                        <span class="badge bg-warning text-dark">
-                                            <i class="fas fa-trophy"></i> Beker
-                                        </span>
-                                    {% else %}
-                                        <span class="badge bg-primary">
-                                            <i class="fas fa-users"></i> Competitie
-                                        </span>
-                                    {% endif %}
+                                    <span class="badge bg-primary">
+                                        <i class="fas fa-users"></i> Competitie
+                                    </span>
                                     {% if match.is_home %}
                                         <span class="badge bg-success">
                                             <i class="fas fa-home"></i> Thuis
@@ -172,21 +152,37 @@
                             </div>
                         </td>
                         {% for player in matrix_data.players %}
-                        {% set is_assigned = player.id in matrix_data.assignments and match.match_id in matrix_data.assignments[player.id] %}
-                        {% set availability = matrix_data.availability.get(player.id, {}).get(match.match_id, {}) %}
+                        {% set is_assigned = player.id in matrix_data.assignments and match.id in matrix_data.assignments[player.id] %}
+                        {% set is_pinned = player.id in matrix_data.pinned_assignments and match.id in matrix_data.pinned_assignments[player.id] %}
+                        {% set actually_played = player.id in matrix_data.actually_played and match.id in matrix_data.actually_played[player.id] %}
+                        {% set availability = matrix_data.availability.get(player.id, {}).get(match.id, {}) %}
                         {% set is_available = availability.get('is_available', True) %}
                         <td class="text-center player-cell 
-                            {% if not is_available %}player-unavailable{% elif is_assigned %}player-assigned{% else %}player-not-assigned{% endif %}
+                            {% if not is_available %}player-unavailable
+                            {% elif is_assigned %}player-assigned
+                                {% if is_pinned %} player-pinned{% endif %}
+                                {% if actually_played %} player-played{% endif %}
+                            {% else %}player-not-assigned{% endif %}
                             {% if match.is_home %}home-match{% else %}away-match{% endif %}
-                            {% if not version.is_final and is_available %}editable-cell{% endif %}"
+                            {% if is_available %}editable-cell{% endif %}"
                             data-player-id="{{ player.id }}" 
-                            data-match-id="{{ match.match_id }}"
-                            {% if not version.is_final and is_available %}onclick="toggleCell(this, {{ player.id }}, {{ match.match_id }})"{% endif %}
-                            title="{% if not is_available %}Niet beschikbaar{% if availability.get('notes') %} - {{ availability.get('notes') }}{% endif %}{% else %}{{ match.home_team }} vs {{ match.away_team }}{% if is_assigned %} (Toegewezen){% endif %}{% endif %}">
+                            data-match-id="{{ match.id }}"
+                            {% if is_available %}onclick="toggleCell(this, {{ player.id }}, {{ match.id }})"{% endif %}
+                            title="{% if not is_available %}Niet beschikbaar{% if availability.get('notes') %} - {{ availability.get('notes') }}{% endif %}
+                            {% else %}{{ match.home_team }} vs {{ match.away_team }}
+                            {% if is_assigned %} (Toegewezen){% endif %}
+                            {% if is_pinned %} - VASTGEPIND{% endif %}
+                            {% if actually_played %} - GESPEELD{% endif %}{% endif %}">
                             {% if not is_available %}
                                 <i class="fas fa-times text-danger fs-5"></i>
                             {% elif is_assigned %}
-                                <i class="fas fa-check text-success fs-5"></i>
+                                {% if actually_played %}
+                                    <i class="fas fa-star text-warning fs-5" title="Daadwerkelijk gespeeld"></i>
+                                {% elif is_pinned %}
+                                    <i class="fas fa-thumbtack text-primary fs-5" title="Vastgepind"></i>
+                                {% else %}
+                                    <i class="fas fa-check text-success fs-5"></i>
+                                {% endif %}
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -212,6 +208,22 @@
                         </td>
                         {% endfor %}
                     </tr>
+                    <tr>
+                        <td class="sticky-column"><strong>VASTGEPIND</strong></td>
+                        {% for player in matrix_data.players %}
+                        <td class="text-center">
+                            <strong id="pinned-{{ player.id }}">{{ matrix_data.stats[player.id].total_pinned }}</strong>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="sticky-column"><strong>GESPEELD</strong></td>
+                        {% for player in matrix_data.players %}
+                        <td class="text-center">
+                            <strong id="played-{{ player.id }}">{{ matrix_data.stats[player.id].total_played }}</strong>
+                        </td>
+                        {% endfor %}
+                    </tr>
                 </tfoot>
             </table>
         </div>
@@ -229,22 +241,40 @@
         <div class="row">
             <div class="col-md-3">
                 <i class="fas fa-check text-success me-2"></i>
-                <span>Ingepland voor wedstrijd</span>
+                <span>Toegewezen (kan bij regeneratie wijzigen)</span>
+            </div>
+            <div class="col-md-3">
+                <i class="fas fa-thumbtack text-primary me-2"></i>
+                <span>Vastgepind (blijft bij regeneratie)</span>
+            </div>
+            <div class="col-md-3">
+                <i class="fas fa-star text-warning me-2"></i>
+                <span>Daadwerkelijk gespeeld</span>
             </div>
             <div class="col-md-3">
                 <i class="fas fa-times text-danger me-2"></i>
                 <span>Niet beschikbaar</span>
             </div>
+        </div>
+        <div class="row mt-2">
             <div class="col-md-3">
                 <span class="text-muted me-2">-</span>
-                <span>Beschikbaar (niet ingepland)</span>
+                <span>Niet toegewezen</span>
             </div>
-            <div class="col-md-3">
-                <!-- Empty for spacing -->
+            <div class="col-md-9">
+                <div class="alert alert-info mb-0 py-2">
+                    <small>
+                        <i class="fas fa-mouse-pointer"></i> 
+                        <strong>Cyclus:</strong> Klik op een cel om te wisselen: 
+                        <span class="text-muted">Niet</span> → 
+                        <span class="text-success">Toegewezen</span> → 
+                        <span class="text-primary">Vastgepind</span> → 
+                        <span class="text-muted">Niet</span>
+                    </small>
+                </div>
             </div>
         </div>
-        <hr>
-        <div class="row">
+        <div class="row mt-2">
             <div class="col-md-3">
                 <span class="badge bg-success me-2">
                     <i class="fas fa-home"></i> Thuis
@@ -258,75 +288,16 @@
                 <span>Uitwedstrijd</span>
             </div>
             <div class="col-md-3">
-                <span class="badge bg-primary me-2">
-                    <i class="fas fa-users"></i> Comp
-                </span>
-                <span>Competitiewedstrijd</span>
-            </div>
-        </div>
-        <div class="row mt-2">
-            <div class="col-md-3">
                 <span class="badge bg-warning text-dark me-2">
-                    <i class="fas fa-trophy"></i> Beker
+                    <i class="fas fa-exclamation-triangle"></i>
                 </span>
-                <span>Bekerwedstrijd</span>
+                <span>Meer dan 4 spelers (handmatig toegestaan)</span>
             </div>
             <div class="col-md-3">
                 <span class="badge bg-danger me-2">
-                    <i class="fas fa-exclamation-triangle"></i> 5+
+                    <i class="fas fa-times-circle"></i>
                 </span>
-                <span>Meer dan 4 spelers (regel overtreding)</span>
-            </div>
-            <div class="col-md-6">
-                <small class="text-muted">
-                    * Percentages berekend op basis van totaal aantal wedstrijden in planning<br>
-                    * Rode achtergrond = meer dan 4 spelers (overtreedt spelersregel)
-                </small>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Statistics -->
-<div class="card mt-4">
-    <div class="card-header">
-        <h6 class="mb-0">
-            <i class="fas fa-chart-bar"></i> Planning Statistieken
-        </h6>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-3">
-                <div class="text-center">
-                    <h4 class="text-primary">{{ matrix_data.matches|length }}</h4>
-                    <p class="mb-0">Totaal Wedstrijden</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <h4 class="text-success">{{ matrix_data.players|length }}</h4>
-                    <p class="mb-0">Actieve Spelers</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <h4 class="text-info">
-                        {{ "%.1f"|format((matrix_data.matches|length * 4) / matrix_data.players|length if matrix_data.players|length > 0 else 0) }}
-                    </h4>
-                    <p class="mb-0">Gem. Wedstrijden/Speler</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <h4 class="text-warning">
-                        {% set total_assignments = 0 %}
-                        {% for player in matrix_data.players %}
-                            {% set total_assignments = total_assignments + matrix_data.stats[player.id].total_matches %}
-                        {% endfor %}
-                        {{ total_assignments }}
-                    </h4>
-                    <p class="mb-0">Totaal Toewijzingen</p>
-                </div>
+                <span>Minder dan 4 spelers (regel overtreding)</span>
             </div>
         </div>
     </div>
@@ -384,6 +355,15 @@
     background-color: rgba(220, 53, 69, 0.15) !important;
 }
 
+/* Under-assigned match highlighting (less than 4 players) */
+.table-warning {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.table-warning .sticky-column {
+    background-color: rgba(255, 193, 7, 0.15) !important;
+}
+
 .match-column {
     width: 200px;
     max-width: 200px;
@@ -429,6 +409,16 @@
 
 .player-assigned {
     background-color: #d1f2eb;
+}
+
+.player-pinned {
+    background-color: #b3d9ff !important;
+    border: 2px solid #007bff;
+}
+
+.player-played {
+    background-color: #fff3cd !important;
+    border: 2px solid #ffc107;
 }
 
 .player-not-assigned {
@@ -522,29 +512,37 @@
 
 <script>
 // Toggle compact view
-document.getElementById('compactView').addEventListener('change', function() {
-    document.body.classList.toggle('compact', this.checked);
+document.addEventListener('DOMContentLoaded', function() {
+    const compactView = document.getElementById('compactView');
+    const showHomeAway = document.getElementById('showHomeAway');
+    
+    if (compactView) {
+        compactView.addEventListener('change', function() {
+            document.body.classList.toggle('compact', this.checked);
+        });
+    }
+
+    if (showHomeAway) {
+        showHomeAway.addEventListener('change', function() {
+            const cells = document.querySelectorAll('.player-cell');
+            cells.forEach(cell => {
+                if (this.checked) {
+                    cell.classList.remove('no-color-coding');
+                } else {
+                    cell.classList.add('no-color-coding');
+                }
+            });
+        });
+    }
 });
 
-// Toggle home/away color coding
-document.getElementById('showHomeAway').addEventListener('change', function() {
-    const cells = document.querySelectorAll('.player-cell');
-    cells.forEach(cell => {
-        if (this.checked) {
-            cell.classList.remove('no-color-coding');
-        } else {
-            cell.classList.add('no-color-coding');
-        }
-    });
-});
-
-// Cell editing functionality
+// Cell editing functionality for Single Planning System with 3-state cycle
 function toggleCell(cell, playerId, matchId) {
     if (cell.classList.contains('loading-cell')) return;
     
     cell.classList.add('loading-cell');
     
-    fetch(`{{ url_for('planning.edit_matrix_cell', version_id=version.id) }}`, {
+    fetch(`{{ url_for('single_planning.edit_matrix_cell') }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -552,22 +550,40 @@ function toggleCell(cell, playerId, matchId) {
         body: JSON.stringify({
             player_id: playerId,
             match_id: matchId,
-            action: 'toggle'
+            action: 'cycle'  // Always cycle through states
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             const icon = cell.querySelector('i') || cell.querySelector('span');
             
+            // Update cell based on state
+            cell.classList.remove('player-assigned', 'player-not-assigned', 'player-pinned', 'player-played');
+            
             if (data.assigned) {
                 cell.classList.add('player-assigned');
-                cell.classList.remove('player-not-assigned');
-                icon.outerHTML = '<i class="fas fa-check text-success fs-5"></i>';
+                
+                if (data.is_pinned) {
+                    // State: Pinned (vastgepind)
+                    cell.classList.add('player-pinned');
+                    icon.outerHTML = '<i class="fas fa-thumbtack text-primary fs-5" title="Vastgepind - blijft bij regeneratie"></i>';
+                    showToast(`Speler vastgepind! Blijft bij regeneratie.`, 'info');
+                } else {
+                    // State: Assigned (toegewezen)
+                    icon.outerHTML = '<i class="fas fa-check text-success fs-5" title="Toegewezen - kan bij regeneratie wijzigen"></i>';
+                    showToast(`Speler toegewezen!`, 'success');
+                }
             } else {
-                cell.classList.remove('player-assigned');
+                // State: Not assigned (niet toegewezen)
                 cell.classList.add('player-not-assigned');
                 icon.outerHTML = '<span class="text-muted">-</span>';
+                showToast(`Speler verwijderd uit planning.`, 'info');
             }
             
             // Update player statistics
@@ -576,11 +592,11 @@ function toggleCell(cell, playerId, matchId) {
             // Update match row highlighting
             updateMatchRowHighlighting(matchId);
             
-            // Check if we're violating the 4-player rule
-            if (data.rule_violation && data.assigned) {
-                showToast(`Regel overtreding: ${data.match_player_count} spelers toegewezen (regel is max 4)`, 'warning');
-            } else {
-                showToast('Planning bijgewerkt!', 'success');
+            // Check player count and show appropriate message
+            if (data.match_player_count > 4) {
+                showToast(`⚠️ Meer dan 4 spelers: ${data.match_player_count} spelers toegewezen (handmatig toegestaan)`, 'warning');
+            } else if (data.match_player_count < 4) {
+                showToast(`❌ Te weinig spelers: ${data.match_player_count} spelers toegewezen (regel is min 4)`, 'error');
             }
         } else {
             showToast(data.error || 'Fout bij bijwerken planning', 'error');
@@ -588,7 +604,7 @@ function toggleCell(cell, playerId, matchId) {
     })
     .catch(error => {
         console.error('Error:', error);
-        showToast('Netwerkfout', 'error');
+        showToast(`Netwerkfout: ${error.message}`, 'error');
     })
     .finally(() => {
         cell.classList.remove('loading-cell');
@@ -596,62 +612,141 @@ function toggleCell(cell, playerId, matchId) {
 }
 
 function updatePlayerStats(playerId, stats) {
-    // Update totals cell with ID
+    // Update totals
     const totalCell = document.getElementById(`total-${playerId}`);
-    if (totalCell) {
-        totalCell.textContent = stats.total_matches;
+    if (totalCell && stats) {
+        totalCell.textContent = stats.total_matches || 0;
     }
     
-    // Update percentage cell with ID
     const percentageCell = document.getElementById(`percentage-${playerId}`);
-    if (percentageCell) {
-        percentageCell.textContent = `${Math.round(stats.percentage)}%`;
+    if (percentageCell && stats) {
+        percentageCell.textContent = `${Math.round(stats.percentage || 0)}%`;
+    }
+    
+    const pinnedCell = document.getElementById(`pinned-${playerId}`);
+    if (pinnedCell && stats) {
+        pinnedCell.textContent = stats.total_pinned || 0;
+    }
+    
+    const playedCell = document.getElementById(`played-${playerId}`);
+    if (playedCell && stats) {
+        playedCell.textContent = stats.total_played || 0;
     }
 }
 
 function updateMatchRowHighlighting(matchId) {
-    // Find the match row
     const matchRow = document.querySelector(`tr[data-match-id="${matchId}"]`);
     if (!matchRow) return;
     
-    // Count assigned players in this row
     const assignedCells = matchRow.querySelectorAll('.player-assigned');
     const playerCount = assignedCells.length;
     
-    // Update row highlighting
-    if (playerCount > 4) {
-        matchRow.classList.add('table-warning');
-    } else {
-        matchRow.classList.remove('table-warning');
-    }
+    // Update row highlighting based on player count
+    matchRow.classList.remove('table-danger', 'table-warning');
     
-    // Update or add the badge in the match info
+    if (playerCount > 4) {
+        matchRow.classList.add('table-warning'); // Orange for >4 players
+    } else if (playerCount < 4) {
+        matchRow.classList.add('table-danger'); // Red for <4 players
+    }
+    // No class for exactly 4 players (normal/green)
+    
+    // Update match info badge
     const matchInfo = matchRow.querySelector('.match-details strong');
     if (matchInfo) {
-        // Remove existing badge
-        const existingBadge = matchInfo.querySelector('.badge');
-        if (existingBadge) {
-            existingBadge.remove();
-        }
+        // Remove existing badges
+        const existingBadges = matchInfo.querySelectorAll('.badge');
+        existingBadges.forEach(badge => badge.remove());
         
-        // Add new badge if over 4 players
         if (playerCount > 4) {
             const badge = document.createElement('span');
-            badge.className = 'badge bg-danger ms-1';
-            badge.title = 'Meer dan 4 spelers - regel overtreding!';
+            badge.className = 'badge bg-warning text-dark ms-1';
+            badge.title = 'Meer dan 4 spelers - handmatig toegestaan maar let op!';
             badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${playerCount}`;
+            matchInfo.appendChild(badge);
+        } else if (playerCount < 4) {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-danger ms-1';
+            badge.title = 'Minder dan 4 spelers - regel overtreding!';
+            badge.innerHTML = `<i class="fas fa-times-circle"></i> ${playerCount}`;
             matchInfo.appendChild(badge);
         }
     }
     
-    // Update data attribute
     matchRow.setAttribute('data-player-count', playerCount);
 }
 
+// Regeneration functionality - simplified version
+function regeneratePlanning() {
+    console.log('🔄 Regenerate button clicked');
+    
+    if (!confirm('🔄 Planning regenereren?\n\n✅ Vastgepinde spelers blijven op hun plek\n🔄 Toegewezen spelers worden opnieuw verdeeld\n\nDoorgaan?')) {
+        console.log('❌ User cancelled regeneration');
+        return;
+    }
+    
+    console.log('✅ User confirmed, starting regeneration...');
+    
+    // Show loading state
+    const btn = document.querySelector('button[onclick="regeneratePlanning()"]');
+    if (btn) {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Regenereren...';
+        btn.disabled = true;
+        
+        console.log('🔄 Button state changed to loading');
+        
+        // Use XMLHttpRequest instead of fetch for better compatibility
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/planning/api/regenerate', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        
+        xhr.onreadystatechange = function() {
+            console.log('🔗 XHR state:', xhr.readyState, 'Status:', xhr.status);
+            
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    console.log('✅ Success response:', xhr.responseText);
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            showToast('🎯 Planning geregenereerd! Gepinde spelers behouden.', 'success');
+                            // Refresh the page to show updated planning
+                            setTimeout(() => {
+                                console.log('🔄 Refreshing page...');
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            showToast(data.error || 'Fout bij regenereren planning', 'error');
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                        }
+                    } catch (e) {
+                        console.error('❌ JSON parse error:', e);
+                        showToast('Onverwacht serverantwoord', 'error');
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                } else {
+                    console.error('❌ HTTP Error:', xhr.status, xhr.statusText);
+                    showToast(`Serverfout: ${xhr.status} ${xhr.statusText}`, 'error');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            }
+        };
+        
+        console.log('📤 Sending regenerate request...');
+        xhr.send('{}');
+    } else {
+        console.error('❌ Button not found');
+        alert('Knop niet gevonden');
+    }
+}
+
 function showToast(message, type = 'info') {
-    // Create toast element
     const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'success'} toast-message`;
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : type === 'info' ? 'info' : 'success'} toast-message`;
     toast.style.cssText = `
         position: fixed;
         top: 20px;
@@ -660,29 +755,38 @@ function showToast(message, type = 'info') {
         min-width: 250px;
         opacity: 0;
         transition: opacity 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-radius: 0.375rem;
     `;
     toast.innerHTML = `
         <div class="d-flex align-items-center">
-            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-triangle' : 'check-circle'} me-2"></i>
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-triangle' : type === 'info' ? 'info-circle' : 'check-circle'} me-2"></i>
             ${message}
+            <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
         </div>
     `;
     
     document.body.appendChild(toast);
-    
-    // Show toast
     setTimeout(() => toast.style.opacity = '1', 10);
-    
-    // Hide and remove toast
     setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => document.body.removeChild(toast), 300);
-    }, type === 'warning' ? 4000 : 3000); // Warning stays longer
+        if (document.body.contains(toast)) {
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }
+    }, type === 'warning' ? 6000 : 4000);
 }
 
-// Export functions (placeholder - need actual implementation)
+// Export functions (placeholder)
 function exportToPDF() {
-    alert('PDF Export functionaliteit volgt in Phase 3');
+    showToast('PDF Export functionaliteit volgt in een latere versie', 'info');
+}
+
+function exportToCSV() {
+    showToast('CSV Export functionaliteit volgt in een latere versie', 'info');
 }
 
 // Add no-color-coding style
@@ -694,5 +798,4 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 </script>
-
 {% endblock %}

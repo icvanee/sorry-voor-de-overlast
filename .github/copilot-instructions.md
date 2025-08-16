@@ -38,11 +38,35 @@ Dit is een Python applicatie voor het beheren van teamplanning voor het dartstea
 - Dit voorkomt problemen met speciale karakters, emoji's en command line limits
 - Gebruik duidelijke, beschrijvende commit messages met emoji's voor leesbaarheid
 
-## Speler Voorkeuren:
-- Partner teams (spelen graag samen)
-- Beschikbaarheid per datum
-- Gelijke verdeling van speeltijd
-- Seizoensplanning optimalisatie
+## 🆕 Issue #22: Single Planning System
+
+### Nieuwe Architectuur:
+- **Eén planning** in plaats van meerdere versies
+- **Planning Version ID = 1** voor alle single planning functionaliteit
+- **Legacy system** blijft bestaan voor backwards compatibility
+
+### Kernfunctionaliteiten:
+- **SinglePlanning service** - Centrale planning logic
+- **Pin systeem** - Spelers/wedstrijden vastpinnen
+- **Actually played** - Registratie wie daadwerkelijk heeft gespeeld
+- **Match status** - Bijhouden of wedstrijd is gespeeld (matches.is_played)
+- **5e speler** - Extra spelers toevoegen en automatisch pinnen
+- **Regeneratie** - Behoud gepinde items, herplan de rest
+
+### Database Uitbreidingen:
+- `matches.is_played` - Boolean voor wedstrijd status
+- Gebruik bestaande `match_planning.is_pinned` en `match_planning.actually_played`
+- Single planning gebruikt altijd `planning_version_id = 1`
+
+### Routes:
+- `/planning/single/` - Nieuw dashboard
+- `/planning/single/match/<id>` - Match details
+- API endpoints voor pin/unpin, actually_played, regeneration
+
+### Migratie Strategie:
+- Legacy planning systeem blijft werken
+- Nieuwe functionaliteit via Single Planning
+- Geleidelijke overgang mogelijk
 
 ## Planning Regels (KRITIEKE BUSINESS LOGIC):
 

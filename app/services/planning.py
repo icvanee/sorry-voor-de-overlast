@@ -361,10 +361,9 @@ class AutoPlanningService:
     
     @staticmethod
     def generate_planning(version_id, constraints=None):
-        """Generate automatic planning for a version based on constraints."""
+        """Generate automatic planning for a version following planning rules."""
         from app.models.match import Match
         from app.models.player import Player
-        import random
         
         # Get all matches for this planning version
         matches = Match.get_all()
@@ -384,31 +383,42 @@ class AutoPlanningService:
                 'matches_planned': 0
             }
         
-        matches_planned = 0
-        player_list = list(players)
+        # Initialize match counts per player for fair distribution
+        player_match_counts = {}
+        for player in players:
+            player_match_counts[player['id']] = 0
         
-        # Simple algorithm: assign 4 random players per match
+        matches_planned = 0
+        
+        # Process each match according to planning rules
         for match in matches:
-            # Randomly select 4 players for this match
-            selected_players = random.sample(player_list, min(4, len(player_list)))
-            player_ids = [p['id'] for p in selected_players]
+            # Apply planning rules for this match
+            selected_players = AutoPlanningService._select_players_for_match(
+                match, players, player_match_counts
+            )
             
-            # Set the planning for this match
-            MatchPlanning.set_planning(version_id, match['id'], player_ids)
-            matches_planned += 1
+            if len(selected_players) > 0:
+                # Set the planning for this match
+                player_ids = [p['id'] for p in selected_players]
+                MatchPlanning.set_planning(version_id, match['id'], player_ids)
+                
+                # Update match counts for fair distribution
+                for player in selected_players:
+                    player_match_counts[player['id']] += 1
+                
+                matches_planned += 1
         
         return {
             'status': 'success',
-            'message': f'Planning generated for {matches_planned} matches',
+            'message': f'Planning generated for {matches_planned} matches following planning rules',
             'matches_planned': matches_planned
         }
     
     @staticmethod
     def generate_planning_selective(version_id, exclude_pinned=False):
-        """Generate planning selectively, optionally excluding pinned matches."""
+        """Generate planning selectively following planning rules, optionally excluding pinned matches."""
         from app.models.match import Match
         from app.models.player import Player
-        import random
         
         # Get all matches for this planning version
         matches = Match.get_all()
@@ -434,28 +444,80 @@ class AutoPlanningService:
             pinned_matches = MatchPlanning.get_pinned_matches(version_id)
             pinned_match_ids = {row['match_id'] for row in pinned_matches}
         
-        matches_planned = 0
-        player_list = list(players)
+        # Get current match counts per player for fair distribution
+        player_match_counts = {}
+        existing_planning = MatchPlanning.get_version_planning(version_id)
         
-        # Simple algorithm: assign 4 random players per match
+        # Initialize counts
+        for player in players:
+            player_match_counts[player['id']] = 0
+        
+        # Count existing matches per player
+        for planning_entry in existing_planning:
+            player_id = planning_entry['player_id']
+            if player_id in player_match_counts:
+                player_match_counts[player_id] += 1
+        
+        matches_planned = 0
+        
+        # Process each match according to planning rules
         for match in matches:
             # Skip pinned matches if requested
             if exclude_pinned and match['id'] in pinned_match_ids:
                 continue
-                
-            # Randomly select 4 players for this match
-            selected_players = random.sample(player_list, min(4, len(player_list)))
-            player_ids = [p['id'] for p in selected_players]
             
-            # Set the planning for this match
-            MatchPlanning.set_planning(version_id, match['id'], player_ids)
-            matches_planned += 1
+            # Apply planning rules for this match
+            selected_players = AutoPlanningService._select_players_for_match(
+                match, players, player_match_counts
+            )
+            
+            if len(selected_players) > 0:
+                # Set the planning for this match
+                player_ids = [p['id'] for p in selected_players]
+                MatchPlanning.set_planning(version_id, match['id'], player_ids)
+                
+                # Update match counts for fair distribution
+                for player in selected_players:
+                    player_match_counts[player['id']] += 1
+                
+                matches_planned += 1
         
         return {
             'status': 'success',
-            'message': f'Planning generated for {matches_planned} matches',
+            'message': f'Planning generated for {matches_planned} matches following planning rules',
             'matches_planned': matches_planned
         }
+
+    @staticmethod
+    def _select_players_for_match(match, all_players, player_match_counts):
+        """Select exactly 4 players for a match following planning rules."""
+        import random
+        from datetime import datetime, date
+        
+        # Rule 1: Filter available players (for now, assume all are available)
+        # TODO: Check actual availability based on match date
+        available_players = list(all_players)
+        
+        if len(available_players) < 4:
+            # Not enough players available - take what we have
+            return available_players
+        
+        # Rule 2: Sort players by match count for fair distribution (least matches first)
+        available_players.sort(key=lambda p: player_match_counts.get(p['id'], 0))
+        
+        # Rule 3: Partner preferences (simplified - would need partner data from database)
+        # TODO: Implement partner preference logic when partner data is available
+        
+        # Rule 4: Select exactly 4 players - prioritize those with fewest matches
+        # Take the 6 players with fewest matches, then randomly select 4 from them
+        # This balances fair distribution with some randomness
+        candidates = available_players[:min(6, len(available_players))]
+        
+        if len(candidates) <= 4:
+            return candidates
+        else:
+            # Randomly select 4 from the candidates with lowest match counts
+            return random.sample(candidates, 4)
     
     @staticmethod
     def optimize_planning(version_id):

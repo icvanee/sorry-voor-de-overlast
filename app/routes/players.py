@@ -7,8 +7,14 @@ players = Blueprint('players', __name__)
 @players.route('/')
 def list_players():
     """List all players."""
+    from app.services.planning import PlanningVersion
+    
     all_players = Player.get_all()
     partner_pairs = Player.get_partner_pairs()
+    
+    # Get the active planning version info
+    active_planning = PlanningVersion.get_active()
+    active_planning_name = active_planning['name'] if active_planning else "Geen actieve planning"
     
     # Get availability and match stats for each player
     players_with_stats = []
@@ -22,10 +28,11 @@ def list_players():
         player_dict['match_stats'] = match_stats
         player_dict['active_planning_stats'] = active_planning_stats  # Add active planning stats
         players_with_stats.append(player_dict)
-    
-    return render_template('players/list.html', players=players_with_stats, partner_pairs=partner_pairs)
 
-@players.route('/add', methods=['GET', 'POST'])
+    return render_template('players/list.html', 
+                         players=players_with_stats, 
+                         partner_pairs=partner_pairs,
+                         active_planning_name=active_planning_name)@players.route('/add', methods=['GET', 'POST'])
 def add_player():
     """Add a new player."""
     if request.method == 'POST':

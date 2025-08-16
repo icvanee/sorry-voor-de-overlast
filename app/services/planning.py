@@ -554,7 +554,11 @@ class AutoPlanningService:
         # Rule 3: Partner preferences (simplified - would need partner data from database)
         # TODO: Implement partner preference logic when partner data is available
         
-        # Rule 4: Select exactly 4 players - prioritize those with fewest matches
+        # Rule 4: Home/Away balance - prefer players who need more of this match type
+        is_home_match = match.get('is_home', True)
+        # TODO: Implement home/away balance logic when match history is available
+        
+        # Rule 5: Select exactly 4 players - prioritize those with fewest matches
         # Take the 6 players with fewest matches, then randomly select 4 from them
         # This balances fair distribution with some randomness
         candidates = available_players[:min(6, len(available_players))]

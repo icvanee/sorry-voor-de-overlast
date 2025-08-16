@@ -172,6 +172,22 @@ class PlanningVersion:
         return version
     
     @staticmethod
+    def get_active():
+        """Get the most recent non-final planning version (considered 'active')."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM planning_versions 
+            WHERE is_final = false AND deleted_at IS NULL 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        ''')
+        version = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return version
+    
+    @staticmethod
     def set_final(version_id):
         """Set a version as the final (definitive) planning."""
         conn = get_db_connection()

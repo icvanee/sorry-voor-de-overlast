@@ -74,9 +74,38 @@ def view_version(version_id):
         flash('Planning version not found!', 'error')
         return redirect(url_for('planning.list_versions'))
     
-    # Get planning grouped by match
-    planning_data = MatchPlanning.get_version_planning(version_id)
-    return render_template('planning/view.html', version=version, planning_data=planning_data)
+    # Get planning data and transform it for the template
+    planning_raw = MatchPlanning.get_version_planning(version_id)
+    
+    # Transform flat planning data into grouped structure expected by template
+    planning_data = {}
+    for row in planning_raw:
+        match_id = row['match_id']
+        
+        if match_id not in planning_data:
+            # Create match object with proper structure
+            planning_data[match_id] = {
+                'match': {
+                    'id': match_id,
+                    'match_date': row['match_date'], 
+                    'home_team': row['home_team'],
+                    'away_team': row['away_team'],
+                    'match_number': row.get('match_number', None)  # Add if available
+                },
+                'players': []
+            }
+        
+        # Add player to this match
+        planning_data[match_id]['players'].append({
+            'id': row['player_id'],
+            'name': row['player_name'],
+            'role': row['role']
+        })
+    
+    # Convert to list for template iteration
+    planning_list = list(planning_data.values())
+    
+    return render_template('planning/view.html', version=version, planning_data=planning_list)
 
 @planning.route('/<int:version_id>/make_final')
 def make_final(version_id):

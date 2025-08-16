@@ -70,7 +70,7 @@ class Match:
 
     @staticmethod
     def create(home_team, away_team, match_date, match_time=None, location=None, is_home=True, 
-               opponent=None):
+               opponent=None, is_cup_match=False, **kwargs):
         """Create a new match."""
         conn = get_db_connection()
         
@@ -93,11 +93,11 @@ class Match:
             
             cursor.execute('''
                 INSERT INTO matches (home_team, away_team, match_date, match_time, location, 
-                                   is_home, opponent)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                   is_home, opponent, is_cup_match)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             ''', (home_team, away_team, match_date, match_time, location, 
-                  is_home, opponent))
+                  is_home, opponent, is_cup_match))
             
             result = cursor.fetchone()
             match_id = result['id']

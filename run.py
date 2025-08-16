@@ -2,8 +2,8 @@ import os
 from app import create_app
 
 def create_application():
-    """Factory function to create Flask app"""
-    print("🚀 Starting Flask application with PostgreSQL")
+    """Factory function to create Flask app for Gunicorn"""
+    print("� Initializing Flask app for Gunicorn WSGI server")
     return create_app()
 
 # Create app instance for Gunicorn

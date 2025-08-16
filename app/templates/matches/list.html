@@ -30,13 +30,13 @@
                     <div class="card border-primary">
                         <div class="card-body">
                             <h6 class="card-title">
-                                {% if match.is_friendly %}
-                                    <span class="badge bg-info me-2">Vriendschappelijk</span>
+                                {% if match.is_cup_match %}
+                                    <span class="badge bg-warning text-dark me-2">Beker</span>
                                 {% endif %}
                                 {{ match.home_team }} vs {{ match.away_team }}
                             </h6>
                             <p class="card-text">
-                                <i class="fas fa-calendar"></i> {{ match.date }}<br>
+                                <i class="fas fa-calendar"></i> {{ match.match_date }}<br>
                                 {% if match.is_home %}
                                     <i class="fas fa-home text-success"></i> Thuiswedstrijd
                                 {% else %}
@@ -81,24 +81,20 @@
                         {% for match in matches %}
                             <tr class="{% if match.is_home %}table-success{% else %}table-warning{% endif %}">
                                 <td>
-                                    <strong>{{ match.date }}</strong>
+                                    <strong>{{ match.match_date }}</strong>
                                     {% if match.match_number %}
                                         <br><small class="text-muted">Ronde {{ match.match_number }}</small>
                                     {% endif %}
                                 </td>
                                 <td>
                                     <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
-                                    {% if match.venue %}
-                                        <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.venue }}</small>
+                                    {% if match.location %}
+                                        <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.location }}</small>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if match.is_friendly %}
-                                        {% if match.match_number and match.match_number.lower().startswith('b') %}
-                                            <span class="badge bg-warning text-dark">Beker</span>
-                                        {% else %}
-                                            <span class="badge bg-info">Vriendschappelijk</span>
-                                        {% endif %}
+                                    {% if match.is_cup_match %}
+                                        <span class="badge bg-warning text-dark">Beker</span>
                                     {% else %}
                                         <span class="badge bg-primary">Competitie</span>
                                     {% endif %}

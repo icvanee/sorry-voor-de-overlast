@@ -24,7 +24,7 @@ class Config:
         'user': url.username,
         'password': url.password
     }
-    print(f"Using PostgreSQL: {url.hostname}:{url.port}/{url.path[1:]}")
+    print(f"🔗 Database: PostgreSQL @ {url.hostname}:{url.port}/{url.path[1:]}")
     
     TEAM_NAME = "Sorry voor de overlast"
     TEAM_URL = "https://feeds.teambeheer.nl/web/team?d=36&t=8723&s=25-26"

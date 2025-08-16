@@ -374,11 +374,11 @@ class TeamBeheerScraper:
             
             # Determine if it's a cup match (bekerwedstrijd)
             # Cup matches have match numbers starting with 'b' (b1, b2, etc.)
-            is_friendly = False
+            is_cup_match = False
             if match_number:
                 match_number_clean = match_number.strip().lower()
                 if match_number_clean.startswith('b'):
-                    is_friendly = True  # Cup matches are marked as friendly to distinguish from regular competition
+                    is_cup_match = True  # Cup matches are marked for proper display
                     print(f"Detected cup match (bekerwedstrijd): {match_number}")
             
             return {
@@ -387,7 +387,7 @@ class TeamBeheerScraper:
                 'home_team': home_team,
                 'away_team': away_team,
                 'is_home': is_home,
-                'is_friendly': is_friendly,
+                'is_cup_match': is_cup_match,
                 'venue': current_app.config['VENUE'] if is_home else ''
             }
             
@@ -492,13 +492,12 @@ class TeamBeheerScraper:
                     print(f"Importing: {match_data['home_team']} vs {match_data['away_team']} on {match_data['date']}")
                     
                     Match.create(
-                        match_number=match_data['match_number'],
-                        date=match_data['date'],
                         home_team=match_data['home_team'],
                         away_team=match_data['away_team'],
+                        match_date=match_data['date'],
                         is_home=match_data['is_home'],
-                        is_friendly=match_data['is_friendly'],
-                        venue=match_data['venue']
+                        is_cup_match=match_data['is_cup_match'],
+                        location=match_data['venue']
                     )
                     imported_count += 1
                     existing_keys.add(match_key)  # Add to prevent duplicates in this session
@@ -562,13 +561,12 @@ def import_static_matches():
                 venue = 'Café De Vrijbuiter' if is_home else ''
                 
                 Match.create(
-                    match_number=match_data['match_number'],
-                    date=match_data['date'],
                     home_team=match_data['home_team'],
                     away_team=match_data['away_team'],
+                    match_date=match_data['date'],
                     is_home=is_home,
-                    is_friendly=match_data['is_friendly'],
-                    venue=venue
+                    is_cup_match=match_data.get('is_friendly', False),  # Static matches use is_friendly for cup matches
+                    location=venue
                 )
                 imported_count += 1
                 

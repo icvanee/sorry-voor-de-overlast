@@ -1,4 +1,5 @@
 import sqlite3
+import psycopg
 import os
 from flask import current_app
 from datetime import datetime
@@ -8,17 +9,9 @@ def get_db_connection():
     """Get a database connection based on configuration."""
     try:
         if Config.DB_TYPE == 'postgresql':
-            import psycopg2
-            import psycopg2.extras
-            
-            conn = psycopg2.connect(
-                host=Config.DB_CONFIG['host'],
-                port=Config.DB_CONFIG['port'],
-                database=Config.DB_CONFIG['database'],
-                user=Config.DB_CONFIG['user'],
-                password=Config.DB_CONFIG['password']
-            )
-            conn.cursor_factory = psycopg2.extras.RealDictCursor
+            # PostgreSQL connection with psycopg3
+            conn_str = f"host={Config.DB_CONFIG['host']} port={Config.DB_CONFIG['port']} dbname={Config.DB_CONFIG['database']} user={Config.DB_CONFIG['user']} password={Config.DB_CONFIG['password']}"
+            conn = psycopg.connect(conn_str, row_factory=psycopg.rows.dict_row)
             return conn
         else:
             # SQLite fallback

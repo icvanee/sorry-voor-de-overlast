@@ -109,6 +109,8 @@ class Match:
             conn.commit()
             cursor.close()
         else:
+            conn.execute(query, params)
+            conn.commit()
         
         conn.close()
     

@@ -1,5 +1,9 @@
 import os
 from urllib.parse import urlparse
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'sorry-voor-de-overlast-secret-key-2025'
@@ -8,7 +12,7 @@ class Config:
     DATABASE_URL = os.environ.get('DATABASE_URL')
     
     try:
-        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+        if DATABASE_URL and (DATABASE_URL.startswith('postgresql://') or DATABASE_URL.startswith('postgres://')):
             # Try PostgreSQL configuration
             url = urlparse(DATABASE_URL)
             DATABASE_PATH = None  # Not used for PostgreSQL
@@ -20,6 +24,7 @@ class Config:
                 'user': url.username,
                 'password': url.password
             }
+            print(f"Using PostgreSQL: {url.hostname}:{url.port}/{url.path[1:]}")
         else:
             raise Exception("PostgreSQL URL not available, falling back to SQLite")
     except Exception as e:

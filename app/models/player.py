@@ -28,7 +28,7 @@ class Player:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT * FROM players WHERE id = %s
+            SELECT * FROM players WHERE id = ?
         ''', (player_id,))
         player = cursor.fetchone()
         cursor.close()
@@ -42,7 +42,7 @@ class Player:
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO players (name, email, phone, role, partner_id) 
-            VALUES (%s, %s, %s, %s, %s) 
+            VALUES (?, ?, ?, ?, ?) 
             RETURNING id
         ''', (name, email, phone, role, partner_id))
         result = cursor.fetchone()
@@ -62,19 +62,19 @@ class Player:
         params = []
         
         if name is not None:
-            updates.append("name = %s")
+            updates.append("name = ?")
             params.append(name)
         if role is not None:
-            updates.append("role = %s")
+            updates.append("role = ?")
             params.append(role)
         if partner_id is not None:
-            updates.append("partner_id = %s")
+            updates.append("partner_id = ?")
             params.append(partner_id)
         if email is not None:
-            updates.append("email = %s")
+            updates.append("email = ?")
             params.append(email)
         if phone is not None:
-            updates.append("phone = %s")
+            updates.append("phone = ?")
             params.append(phone)
         
         if not updates:
@@ -82,7 +82,7 @@ class Player:
             return
         
         params.append(player_id)
-        query = f'''UPDATE players SET {", ".join(updates)} WHERE id = %s'''
+        query = f'''UPDATE players SET {", ".join(updates)} WHERE id = ?'''
         
         cursor = conn.cursor()
         cursor.execute(query, params)
@@ -97,8 +97,8 @@ class Player:
         cursor = conn.cursor()
         cursor.execute('''
             UPDATE players 
-            SET prefer_partner_together = %s 
-            WHERE id = %s
+            SET prefer_partner_together = ? 
+            WHERE id = ?
         ''', (prefer_together, player_id))
         conn.commit()
         cursor.close()
@@ -110,7 +110,7 @@ class Player:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT prefer_partner_together FROM players WHERE id = %s
+            SELECT prefer_partner_together FROM players WHERE id = ?
         ''', (player_id,))
         result = cursor.fetchone()
         cursor.close()
@@ -122,7 +122,7 @@ class Player:
         """Delete a player."""
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM players WHERE id = %s', (player_id,))
+        cursor.execute('DELETE FROM players WHERE id = ?', (player_id,))
         conn.commit()
         cursor.close()
         conn.close()
@@ -135,7 +135,7 @@ class Player:
         cursor.execute('''
             UPDATE players 
             SET is_active = false 
-            WHERE id = %s
+            WHERE id = ?
         ''', (player_id,))
         conn.commit()
         cursor.close()
@@ -149,7 +149,7 @@ class Player:
         cursor.execute('''
             UPDATE players 
             SET is_active = true 
-            WHERE id = %s
+            WHERE id = ?
         ''', (player_id,))
         conn.commit()
         cursor.close()
@@ -193,7 +193,7 @@ class Player:
                    SUM(CASE WHEN is_available = true THEN 1 ELSE 0 END) as available,
                    SUM(CASE WHEN is_available = false THEN 1 ELSE 0 END) as unavailable
             FROM player_availability 
-            WHERE player_id = %s
+            WHERE player_id = ?
         ''', (player_id,))
         result = cursor.fetchone()
         cursor.close()
@@ -225,7 +225,7 @@ class Player:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT * FROM player_availability 
-            WHERE player_id = %s AND match_id = %s
+            WHERE player_id = ? AND match_id = ?
         ''', (player_id, match_id))
         availability = cursor.fetchone()
         cursor.close()
@@ -239,9 +239,9 @@ class Player:
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO player_availability (player_id, match_id, is_available, notes)
-            VALUES (%s, %s, %s, %s)
+            VALUES (?, ?, ?, ?)
             ON CONFLICT (player_id, match_id) 
-            DO UPDATE SET is_available = %s, notes = %s, updated_at = CURRENT_TIMESTAMP
+            DO UPDATE SET is_available = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
         ''', (player_id, match_id, is_available, notes, is_available, notes))
         conn.commit()
         cursor.close()
@@ -256,7 +256,7 @@ class Player:
             SELECT pa.*, m.match_date, m.home_team, m.away_team, m.opponent
             FROM player_availability pa
             JOIN matches m ON pa.match_id = m.id
-            WHERE pa.player_id = %s
+            WHERE pa.player_id = ?
             ORDER BY m.match_date ASC
         ''', (player_id,))
         availability = cursor.fetchall()
@@ -275,7 +275,7 @@ class Player:
                    SUM(CASE WHEN m.is_home = false THEN 1 ELSE 0 END) as away_matches
             FROM match_planning mp
             JOIN matches m ON mp.match_id = m.id
-            WHERE mp.player_id = %s AND mp.actually_played = true
+            WHERE mp.player_id = ? AND mp.actually_played = true
         ''', (player_id,))
         result = cursor.fetchone()
         cursor.close()
@@ -324,7 +324,7 @@ class Player:
         cursor.execute('''
             SELECT is_available, notes
             FROM player_availability 
-            WHERE player_id = %s AND match_id = %s
+            WHERE player_id = ? AND match_id = ?
         ''', (player_id, match_id))
         result = cursor.fetchone()
         cursor.close()
@@ -338,7 +338,7 @@ class Player:
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO player_availability (player_id, match_id, is_available, notes)
-            VALUES (%s, %s, %s, %s)
+            VALUES (?, ?, ?, ?)
             ON CONFLICT (player_id, match_id)
             DO UPDATE SET 
                 is_available = EXCLUDED.is_available,
@@ -358,7 +358,7 @@ class Player:
             SELECT pa.*, m.date, m.time, m.home_team, m.away_team
             FROM player_availability pa
             JOIN matches m ON pa.match_id = m.id
-            WHERE pa.player_id = %s
+            WHERE pa.player_id = ?
             ORDER BY m.date, m.time
         ''', (player_id,))
         results = cursor.fetchall()

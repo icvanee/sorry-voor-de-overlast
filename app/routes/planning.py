@@ -426,7 +426,7 @@ def edit_matrix_cell(version_id):
         # Check if assignment exists
         cursor.execute('''
             SELECT id FROM match_planning 
-            WHERE planning_version_id = %s AND match_id = %s AND player_id = %s
+            WHERE planning_version_id = ? AND match_id = ? AND player_id = ?
         ''', (version_id, match_id, player_id))
         
         existing = cursor.fetchone()
@@ -436,26 +436,26 @@ def edit_matrix_cell(version_id):
                 # Remove assignment
                 cursor.execute('''
                     DELETE FROM match_planning 
-                    WHERE planning_version_id = %s AND match_id = %s AND player_id = %s
+                    WHERE planning_version_id = ? AND match_id = ? AND player_id = ?
                 ''', (version_id, match_id, player_id))
                 assigned = False
             else:
                 # Add assignment
                 cursor.execute('''
                     INSERT INTO match_planning (planning_version_id, match_id, player_id)
-                    VALUES (%s, %s, %s)
+                    VALUES (?, ?, ?)
                 ''', (version_id, match_id, player_id))
                 assigned = True
         elif action == 'add' and not existing:
             cursor.execute('''
                 INSERT INTO match_planning (planning_version_id, match_id, player_id)
-                VALUES (%s, %s, %s)
+                VALUES (?, ?, ?)
             ''', (version_id, match_id, player_id))
             assigned = True
         elif action == 'remove' and existing:
             cursor.execute('''
                 DELETE FROM match_planning 
-                WHERE planning_version_id = %s AND match_id = %s AND player_id = %s
+                WHERE planning_version_id = ? AND match_id = ? AND player_id = ?
             ''', (version_id, match_id, player_id))
             assigned = False
         else:
@@ -466,14 +466,14 @@ def edit_matrix_cell(version_id):
         # Check if this match now has more than 4 players (rule violation)
         cursor.execute('''
             SELECT COUNT(*) as player_count FROM match_planning 
-            WHERE planning_version_id = %s AND match_id = %s
+            WHERE planning_version_id = ? AND match_id = ?
         ''', (version_id, match_id))
         match_player_count = cursor.fetchone()['player_count']
         
         # Get updated statistics for this player
         cursor.execute('''
             SELECT COUNT(*) as total FROM match_planning mp
-            WHERE mp.planning_version_id = %s AND mp.player_id = %s
+            WHERE mp.planning_version_id = ? AND mp.player_id = ?
         ''', (version_id, player_id))
         total_matches = cursor.fetchone()['total']
         
@@ -571,6 +571,8 @@ def export_matrix_csv(version_id):
 
 def get_planning_matrix_data(version_id):
     """Transform planning data into matrix format."""
+    from datetime import datetime
+    
     # Get all matches for this planning version
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -586,11 +588,28 @@ def get_planning_matrix_data(version_id):
             COALESCE(m.is_cup_match, false) as is_cup_match,
             m.round_name
         FROM matches m
-        LEFT JOIN match_planning mp ON m.id = mp.match_id AND mp.planning_version_id = %s
+        LEFT JOIN match_planning mp ON m.id = mp.match_id AND mp.planning_version_id = ?
         ORDER BY m.match_date, m.home_team
     ''', (version_id,))
     
-    matches = cursor.fetchall()
+    matches_raw = cursor.fetchall()
+    
+    # Convert matches to proper format with parsed dates
+    matches = []
+    for match in matches_raw:
+        match_dict = dict(match)
+        # Parse the date string to a datetime object
+        if match_dict['match_date']:
+            try:
+                # Try parsing different date formats
+                if isinstance(match_dict['match_date'], str):
+                    match_dict['match_date'] = datetime.strptime(match_dict['match_date'], '%Y-%m-%d').date()
+                elif hasattr(match_dict['match_date'], 'date'):
+                    match_dict['match_date'] = match_dict['match_date'].date()
+            except ValueError:
+                # If parsing fails, keep as string
+                pass
+        matches.append(match_dict)
     
     # Get all active players
     cursor.execute('''
@@ -610,7 +629,7 @@ def get_planning_matrix_data(version_id):
             p.name
         FROM match_planning mp
         JOIN players p ON mp.player_id = p.id
-        WHERE mp.planning_version_id = %s
+        WHERE mp.planning_version_id = ?
         ORDER BY mp.match_id, p.name
     ''', (version_id,))
     

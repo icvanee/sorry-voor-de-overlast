@@ -45,7 +45,7 @@ class PlanningVersion:
         if Config.DB_TYPE == 'postgresql':
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT * FROM planning_versions WHERE id = %s
+                SELECT * FROM planning_versions WHERE id = ?
             ''', (version_id,))
             version = cursor.fetchone()
             cursor.close()
@@ -66,7 +66,7 @@ class PlanningVersion:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO planning_versions (name, description) 
-                VALUES (%s, %s) RETURNING id
+                VALUES (?, ?) RETURNING id
             ''', (name, description))
             result = cursor.fetchone()
             version_id = result['id'] if result else None
@@ -94,7 +94,7 @@ class PlanningVersion:
             # First, unmark all other versions
             cursor.execute('UPDATE planning_versions SET is_active = FALSE')
             # Mark this version as final
-            cursor.execute('UPDATE planning_versions SET is_active = TRUE WHERE id = %s', (version_id,))
+            cursor.execute('UPDATE planning_versions SET is_active = TRUE WHERE id = ?', (version_id,))
             conn.commit()
             cursor.close()
         else:
@@ -117,7 +117,7 @@ class PlanningVersion:
             # Create new version
             cursor.execute('''
                 INSERT INTO planning_versions (name, description) 
-                VALUES (%s, %s) RETURNING id
+                VALUES (?, ?) RETURNING id
             ''', (name, description))
             new_version_id = cursor.fetchone()[0]
             
@@ -127,20 +127,20 @@ class PlanningVersion:
             
             # Copy all planning entries
             if pinned_matches:
-                pinned_placeholders = ','.join(['%s'] * len(pinned_matches))
+                pinned_placeholders = ','.join(['?'] * len(pinned_matches))
                 cursor.execute(f'''
                     INSERT INTO match_planning (planning_version_id, match_id, player_id, is_confirmed, actually_played, is_pinned, notes)
-                    SELECT %s, match_id, player_id, is_confirmed, actually_played, 
+                    SELECT ?, match_id, player_id, is_confirmed, actually_played, 
                            CASE WHEN match_id IN ({pinned_placeholders}) THEN TRUE ELSE FALSE END, notes
                     FROM match_planning 
-                    WHERE planning_version_id = %s
+                    WHERE planning_version_id = ?
                 ''', [new_version_id] + pinned_matches + [source_version_id])
             else:
                 cursor.execute('''
                     INSERT INTO match_planning (planning_version_id, match_id, player_id, is_confirmed, actually_played, is_pinned, notes)
-                    SELECT %s, match_id, player_id, is_confirmed, actually_played, FALSE, notes
+                    SELECT ?, match_id, player_id, is_confirmed, actually_played, FALSE, notes
                     FROM match_planning 
-                    WHERE planning_version_id = %s
+                    WHERE planning_version_id = ?
                 ''', (new_version_id, source_version_id))
             
             conn.commit()
@@ -212,7 +212,7 @@ class PlanningVersion:
             cursor.execute('''
                 UPDATE planning_versions 
                 SET deleted_at = CURRENT_TIMESTAMP 
-                WHERE id = %s
+                WHERE id = ?
             ''', (version_id,))
             conn.commit()
             cursor.close()
@@ -236,7 +236,7 @@ class PlanningVersion:
             cursor.execute('''
                 UPDATE planning_versions 
                 SET deleted_at = NULL 
-                WHERE id = %s
+                WHERE id = ?
             ''', (version_id,))
             conn.commit()
             cursor.close()
@@ -258,7 +258,7 @@ class PlanningVersion:
         if Config.DB_TYPE == 'postgresql':
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT deleted_at FROM planning_versions WHERE id = %s
+                SELECT deleted_at FROM planning_versions WHERE id = ?
             ''', (version_id,))
             result = cursor.fetchone()
             cursor.close()
@@ -323,7 +323,7 @@ class MatchPlanning:
                     FROM match_planning mp
                     JOIN players p ON mp.player_id = p.id
                     JOIN matches m ON mp.match_id = m.id
-                    WHERE mp.planning_version_id = %s AND mp.match_id = %s
+                    WHERE mp.planning_version_id = ? AND mp.match_id = ?
                     ORDER BY p.name
                 ''', (version_id, match_id))
             else:
@@ -332,7 +332,7 @@ class MatchPlanning:
                     FROM match_planning mp
                     JOIN players p ON mp.player_id = p.id
                     JOIN matches m ON mp.match_id = m.id
-                    WHERE mp.planning_version_id = %s
+                    WHERE mp.planning_version_id = ?
                     ORDER BY m.date, p.name
                 ''', (version_id,))
             planning = cursor.fetchall()
@@ -404,14 +404,14 @@ class MatchPlanning:
             # Remove existing planning for this match in this version
             cursor.execute('''
                 DELETE FROM match_planning 
-                WHERE planning_version_id = %s AND match_id = %s
+                WHERE planning_version_id = ? AND match_id = ?
             ''', (version_id, match_id))
             
             # Add new planning
             for player_id in player_ids:
                 cursor.execute('''
                     INSERT INTO match_planning (planning_version_id, match_id, player_id) 
-                    VALUES (%s, %s, %s)
+                    VALUES (?, ?, ?)
                 ''', (version_id, match_id, player_id))
             
             conn.commit()
@@ -443,8 +443,8 @@ class MatchPlanning:
             cursor = conn.cursor()
             cursor.execute('''
                 UPDATE match_planning 
-                SET is_pinned = %s
-                WHERE planning_version_id = %s AND match_id = %s
+                SET is_pinned = ?
+                WHERE planning_version_id = ? AND match_id = ?
             ''', (pinned, version_id, match_id))
             conn.commit()
             cursor.close()
@@ -468,7 +468,7 @@ class MatchPlanning:
             cursor.execute('''
                 SELECT DISTINCT match_id 
                 FROM match_planning 
-                WHERE planning_version_id = %s AND is_pinned = TRUE
+                WHERE planning_version_id = ? AND is_pinned = TRUE
             ''', (version_id,))
             matches = cursor.fetchall()
             cursor.close()

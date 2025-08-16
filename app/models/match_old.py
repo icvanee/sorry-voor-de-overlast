@@ -41,7 +41,7 @@ class Match:
         if Config.DB_TYPE == 'postgresql':
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT * FROM matches WHERE id = %s
+                SELECT * FROM matches WHERE id = ?
             ''', (match_id,))
             match = cursor.fetchone()
             cursor.close()
@@ -92,7 +92,7 @@ class Match:
                     INSERT INTO matches (match_date, opponent, location, is_home, 
                                        match_number, date, home_team, away_team, 
                                        is_friendly, venue) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 ''', (final_match_date, final_opponent, final_location, final_is_home,
                      match_number, date, home_team, away_team, is_friendly, venue))
                 result = cursor.fetchone()
@@ -137,16 +137,16 @@ class Match:
         params = []
         
         if match_date is not None:
-            updates.append('match_date = %s' if Config.DB_TYPE == 'postgresql' else 'match_date = ?')
+            updates.append('match_date = ?' if Config.DB_TYPE == 'postgresql' else 'match_date = ?')
             params.append(match_date)
         if opponent is not None:
-            updates.append('opponent = %s' if Config.DB_TYPE == 'postgresql' else 'opponent = ?')
+            updates.append('opponent = ?' if Config.DB_TYPE == 'postgresql' else 'opponent = ?')
             params.append(opponent)
         if location is not None:
-            updates.append('location = %s' if Config.DB_TYPE == 'postgresql' else 'location = ?')
+            updates.append('location = ?' if Config.DB_TYPE == 'postgresql' else 'location = ?')
             params.append(location)
         if is_home is not None:
-            updates.append('is_home = %s' if Config.DB_TYPE == 'postgresql' else 'is_home = ?')
+            updates.append('is_home = ?' if Config.DB_TYPE == 'postgresql' else 'is_home = ?')
             params.append(is_home)
         
         if not updates:
@@ -154,7 +154,7 @@ class Match:
             return
         
         params.append(match_id)
-        param_placeholder = '%s' if Config.DB_TYPE == 'postgresql' else '?'
+        param_placeholder = '?' if Config.DB_TYPE == 'postgresql' else '?'
         
         query = f'''UPDATE matches SET {", ".join(updates)} WHERE id = {param_placeholder}'''
         
@@ -177,9 +177,9 @@ class Match:
         if Config.DB_TYPE == 'postgresql':
             cursor = conn.cursor()
             # First delete related planning entries
-            cursor.execute('DELETE FROM match_planning WHERE match_id = %s', (match_id,))
-            cursor.execute('DELETE FROM player_availability WHERE match_id = %s', (match_id,))
-            cursor.execute('DELETE FROM matches WHERE id = %s', (match_id,))
+            cursor.execute('DELETE FROM match_planning WHERE match_id = ?', (match_id,))
+            cursor.execute('DELETE FROM player_availability WHERE match_id = ?', (match_id,))
+            cursor.execute('DELETE FROM matches WHERE id = ?', (match_id,))
             conn.commit()
             cursor.close()
         else:
@@ -201,7 +201,7 @@ class Match:
             cursor = conn.cursor()
             cursor.execute('''
                 SELECT * FROM matches 
-                WHERE match_date >= %s
+                WHERE match_date >= ?
                 ORDER BY match_date ASC
             ''', (today,))
             matches = cursor.fetchall()

@@ -5,6 +5,17 @@ from datetime import datetime
 from config import Config
 import os
 
+def get_placeholder():
+    """Get the correct parameter placeholder for the current database type."""
+    return '%s' if Config.DB_TYPE == 'postgresql' else '?'
+
+def format_query(query):
+    """Convert PostgreSQL-style query to SQLite if needed."""
+    if Config.DB_TYPE == 'sqlite':
+        # Convert %s to ? for SQLite
+        return query.replace('%s', '?')
+    return query
+
 def get_db_connection():
     """Get a database connection (SQLite or PostgreSQL)."""
     try:

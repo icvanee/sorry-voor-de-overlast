@@ -31,7 +31,7 @@ class Match:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT * FROM matches WHERE id = %s
+            SELECT * FROM matches WHERE id = ?
         ''', (match_id,))
         match = cursor.fetchone()
         cursor.close()
@@ -94,7 +94,7 @@ class Match:
             cursor.execute('''
                 INSERT INTO matches (home_team, away_team, match_date, match_time, location, 
                                    is_home, opponent, is_cup_match)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
             ''', (home_team, away_team, match_date, match_time, location, 
                   is_home, opponent, is_cup_match))
@@ -135,7 +135,7 @@ class Match:
         for field, value in kwargs.items():
             if field in field_mapping and value is not None:
                 db_field = field_mapping[field]
-                updates.append(f'{db_field} = %s')
+                updates.append(f'{db_field} = ?')
                 params.append(value)
         
         if not updates:
@@ -143,7 +143,7 @@ class Match:
             return
         
         params.append(match_id)
-        query = f'''UPDATE matches SET {", ".join(updates)} WHERE id = %s'''
+        query = f'''UPDATE matches SET {", ".join(updates)} WHERE id = ?'''
         
         cursor = conn.cursor()
         cursor.execute(query, params)
@@ -158,13 +158,13 @@ class Match:
         cursor = conn.cursor()
         
         # First delete related player availability
-        cursor.execute('DELETE FROM player_availability WHERE match_id = %s', (match_id,))
+        cursor.execute('DELETE FROM player_availability WHERE match_id = ?', (match_id,))
         
         # Delete related match planning
-        cursor.execute('DELETE FROM match_planning WHERE match_id = %s', (match_id,))
+        cursor.execute('DELETE FROM match_planning WHERE match_id = ?', (match_id,))
         
         # Finally delete the match
-        cursor.execute('DELETE FROM matches WHERE id = %s', (match_id,))
+        cursor.execute('DELETE FROM matches WHERE id = ?', (match_id,))
         
         conn.commit()
         cursor.close()
@@ -178,13 +178,13 @@ class Match:
         
         query = '''
             SELECT * FROM matches 
-            WHERE match_date >= %s 
+            WHERE match_date >= ? 
             ORDER BY match_date ASC, match_time ASC
         '''
         
         params = [date.today()]
         if limit:
-            query += ' LIMIT %s'
+            query += ' LIMIT ?'
             params.append(limit)
         
         cursor.execute(query, params)
@@ -201,13 +201,13 @@ class Match:
         
         query = '''
             SELECT * FROM matches 
-            WHERE match_date < %s 
+            WHERE match_date < ? 
             ORDER BY match_date DESC, time DESC
         '''
         
         params = [date.today()]
         if limit:
-            query += ' LIMIT %s'
+            query += ' LIMIT ?'
             params.append(limit)
         
         cursor.execute(query, params)
@@ -223,7 +223,7 @@ class Match:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT * FROM matches 
-            WHERE match_date >= %s AND match_date <= %s 
+            WHERE match_date >= ? AND match_date <= ? 
             ORDER BY match_date ASC, match_time ASC
         ''', (start_date, end_date))
         matches = cursor.fetchall()
@@ -238,7 +238,7 @@ class Match:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT COUNT(*) as count FROM matches 
-            WHERE home_team = %s AND away_team = %s AND match_date = %s
+            WHERE home_team = ? AND away_team = ? AND match_date = ?
         ''', (home_team, away_team, match_date))
         result = cursor.fetchone()
         cursor.close()
@@ -256,8 +256,8 @@ class Match:
                 COUNT(*) as total_matches,
                 COUNT(CASE WHEN is_home = true THEN 1 END) as home_matches,
                 COUNT(CASE WHEN is_home = false THEN 1 END) as away_matches,
-                COUNT(CASE WHEN match_date >= %s THEN 1 END) as upcoming_matches,
-                COUNT(CASE WHEN match_date < %s THEN 1 END) as past_matches
+                COUNT(CASE WHEN match_date >= ? THEN 1 END) as upcoming_matches,
+                COUNT(CASE WHEN match_date < ? THEN 1 END) as past_matches
             FROM matches
         ''', (date.today(), date.today()))
         

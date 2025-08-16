@@ -38,7 +38,7 @@ class Player:
         if Config.DB_TYPE == 'postgresql':
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT * FROM players WHERE id = %s
+                SELECT * FROM players WHERE id = ?
             ''', (player_id,))
             player = cursor.fetchone()
             cursor.close()
@@ -59,7 +59,7 @@ class Player:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO players (name, email, phone) 
-                VALUES (%s, %s, %s) RETURNING id
+                VALUES (?, ?, ?) RETURNING id
             ''', (name, email, phone))
             player_id = cursor.fetchone()[0]
             conn.commit()
@@ -86,13 +86,13 @@ class Player:
         params = []
         
         if name is not None:
-            updates.append('name = %s' if Config.DB_TYPE == 'postgresql' else 'name = ?')
+            updates.append('name = ?' if Config.DB_TYPE == 'postgresql' else 'name = ?')
             params.append(name)
         if email is not None:
-            updates.append('email = %s' if Config.DB_TYPE == 'postgresql' else 'email = ?')
+            updates.append('email = ?' if Config.DB_TYPE == 'postgresql' else 'email = ?')
             params.append(email)
         if phone is not None:
-            updates.append('phone = %s' if Config.DB_TYPE == 'postgresql' else 'phone = ?')
+            updates.append('phone = ?' if Config.DB_TYPE == 'postgresql' else 'phone = ?')
             params.append(phone)
         
         if not updates:
@@ -100,7 +100,7 @@ class Player:
             return
         
         params.append(player_id)
-        param_placeholder = '%s' if Config.DB_TYPE == 'postgresql' else '?'
+        param_placeholder = '?' if Config.DB_TYPE == 'postgresql' else '?'
         
         query = f'''UPDATE players SET {", ".join(updates)} WHERE id = {param_placeholder}'''
         
@@ -122,7 +122,7 @@ class Player:
         
         if Config.DB_TYPE == 'postgresql':
             cursor = conn.cursor()
-            cursor.execute('DELETE FROM players WHERE id = %s', (player_id,))
+            cursor.execute('DELETE FROM players WHERE id = ?', (player_id,))
             conn.commit()
             cursor.close()
         else:

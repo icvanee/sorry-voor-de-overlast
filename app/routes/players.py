@@ -32,7 +32,9 @@ def list_players():
     return render_template('players/list.html', 
                          players=players_with_stats, 
                          partner_pairs=partner_pairs,
-                         active_planning_name=active_planning_name)@players.route('/add', methods=['GET', 'POST'])
+                         active_planning_name=active_planning_name)
+
+@players.route('/add', methods=['GET', 'POST'])
 def add_player():
     """Add a new player."""
     if request.method == 'POST':

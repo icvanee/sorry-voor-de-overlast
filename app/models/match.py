@@ -30,6 +30,13 @@ class Match:
                 ORDER BY match_date ASC
             ''').fetchall()
         
+        conn.close()
+        return matches
+    
+    @staticmethod
+    def get_by_id(match_id):
+        """Get a match by ID."""
+        conn = get_db_connection()
         
         if Config.DB_TYPE == 'postgresql':
             cursor = conn.cursor()

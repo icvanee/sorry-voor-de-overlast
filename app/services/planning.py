@@ -1,15 +1,16 @@
 from app.models.database import get_db_connection
 from app.models.player import Player
 from app.models.match import Match
+from config import Config
 import random
 from datetime import datetime
 
 class PlanningVersion:
-    def __init__(self, id=None, name=None, description='', is_final=False):
+    def __init__(self, id=None, name=None, description='', is_active=False):
         self.id = id
         self.name = name
         self.description = description
-        self.is_final = is_final
+        self.is_active = is_active
     
     @staticmethod
     def get_all():
@@ -67,12 +68,12 @@ class PlanningVersion:
         
         # First, unmark all other versions
         conn.execute('''
-            UPDATE planning_versions SET is_final = FALSE
+            UPDATE planning_versions SET is_active = FALSE
         ''')
         
         # Mark this version as final
         conn.execute('''
-            UPDATE planning_versions SET is_final = TRUE WHERE id = ?
+            UPDATE planning_versions SET is_active = TRUE WHERE id = ?
         ''', (version_id,))
         
         conn.commit()
@@ -113,9 +114,19 @@ class PlanningVersion:
     def get_final():
         """Get the final planning version."""
         conn = get_db_connection()
-        version = conn.execute('''
-            SELECT * FROM planning_versions WHERE is_final = TRUE AND deleted_at IS NULL
-        ''').fetchone()
+        
+        if Config.DB_TYPE == 'postgresql':
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM planning_versions WHERE is_active = true AND deleted_at IS NULL
+            ''')
+            version = cursor.fetchone()
+            cursor.close()
+        else:
+            version = conn.execute('''
+                SELECT * FROM planning_versions WHERE is_active = 1 AND deleted_at IS NULL
+            ''').fetchone()
+        
         conn.close()
         return version
     

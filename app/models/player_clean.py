@@ -130,31 +130,3 @@ class Player:
             conn.commit()
         
         conn.close()
-
-    @staticmethod
-    def get_partner_pairs():
-        """Get player partner pairs for statistics."""
-        # For now, return empty list since we don't have partner functionality yet
-        # This can be implemented when partner relationships are added to the schema
-        return []
-
-    @staticmethod
-    def get_availability_stats(player_id):
-        """Get availability statistics for a player."""
-        # For now, return empty stats since we don't have availability tracking yet
-        return {
-            'total_matches': 0,
-            'available': 0,
-            'unavailable': 0,
-            'availability_rate': 0
-        }
-
-    @staticmethod
-    def get_match_stats(player_id):
-        """Get match statistics for a player."""
-        # For now, return empty stats since we don't have match tracking yet
-        return {
-            'played': 0,
-            'home_matches': 0,
-            'away_matches': 0
-        }

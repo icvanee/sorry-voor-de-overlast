@@ -10,7 +10,12 @@
             <a href="{{ url_for('planning.view_version', version_id=version.id) }}" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i> Terug naar Planning
             </a>
-            <a href="{{ url_for('planning.list_versions') }}" class="btn btn-sm btn-outline-primary">
+            <a href="{{ url_for('planning.list_ver    // Update match row highlighting
+    if (playerCount > 4) {
+        matchRow.classList.add('table-danger');
+    } else {
+        matchRow.classList.remove('table-danger');
+    }) }}" class="btn btn-sm btn-outline-primary">
                 <i class="fas fa-list"></i> Alle Planningen
             </a>
         </div>
@@ -118,11 +123,23 @@
                 </thead>
                 <tbody>
                     {% for match in matrix_data.matches %}
-                    <tr class="match-row" data-match-id="{{ match.id }}">
+                    {% set match_players = [] %}
+                    {% for player in matrix_data.players %}
+                        {% if player.id in matrix_data.assignments and match.match_id in matrix_data.assignments[player.id] %}
+                            {% set _ = match_players.append(player.id) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set match_player_count = match_players|length %}
+                    <tr class="match-row {% if match_player_count > 4 %}table-danger{% endif %}" data-match-id="{{ match.match_id }}" data-player-count="{{ match_player_count }}">
                         <td class="sticky-column match-info">
                             <div class="match-details">
                                 <strong>
                                     {{ "%02d"|format(loop.index) }}. {{ match.match_date.strftime('%d/%m') if match.match_date else 'TBD' }}
+                                    {% if match_player_count > 4 %}
+                                        <span class="badge bg-danger ms-1" title="Meer dan 4 spelers - regel overtreding!">
+                                            <i class="fas fa-exclamation-triangle"></i> {{ match_player_count }}
+                                        </span>
+                                    {% endif %}
                                 </strong>
                                 <br>
                                 <small class="match-teams">
@@ -178,12 +195,12 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="table-secondary">
+                <tfoot class="table-secondary sticky-bottom">
                     <tr>
                         <td class="sticky-column"><strong>TOTAAL WEDSTRIJDEN</strong></td>
                         {% for player in matrix_data.players %}
                         <td class="text-center">
-                            <strong>{{ matrix_data.stats[player.id].total_matches }}</strong>
+                            <strong id="total-{{ player.id }}">{{ matrix_data.stats[player.id].total_matches }}</strong>
                         </td>
                         {% endfor %}
                     </tr>
@@ -191,7 +208,7 @@
                         <td class="sticky-column"><strong>PERCENTAGE</strong></td>
                         {% for player in matrix_data.players %}
                         <td class="text-center">
-                            <strong>{{ "%.0f"|format(matrix_data.stats[player.id].percentage) }}%</strong>
+                            <strong id="percentage-{{ player.id }}">{{ "%.0f"|format(matrix_data.stats[player.id].percentage) }}%</strong>
                         </td>
                         {% endfor %}
                     </tr>
@@ -254,9 +271,16 @@
                 </span>
                 <span>Bekerwedstrijd</span>
             </div>
-            <div class="col-md-9">
+            <div class="col-md-3">
+                <span class="badge bg-danger me-2">
+                    <i class="fas fa-exclamation-triangle"></i> 5+
+                </span>
+                <span>Meer dan 4 spelers (regel overtreding)</span>
+            </div>
+            <div class="col-md-6">
                 <small class="text-muted">
-                    * Percentages berekend op basis van totaal aantal wedstrijden in planning
+                    * Percentages berekend op basis van totaal aantal wedstrijden in planning<br>
+                    * Rode achtergrond = meer dan 4 spelers (overtreedt spelersregel)
                 </small>
             </div>
         </div>
@@ -330,6 +354,34 @@
 
 .table-secondary .sticky-column {
     background-color: #e2e3e5;
+}
+
+/* Sticky header and footer */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.sticky-bottom {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+}
+
+/* Table container with max height for scrolling */
+.table-responsive {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Over-assigned match highlighting */
+.table-danger {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.table-danger .sticky-column {
+    background-color: rgba(220, 53, 69, 0.15) !important;
 }
 
 .match-column {
@@ -521,8 +573,15 @@ function toggleCell(cell, playerId, matchId) {
             // Update player statistics
             updatePlayerStats(playerId, data.stats);
             
-            // Show success feedback
-            showToast('Planning bijgewerkt!', 'success');
+            // Update match row highlighting
+            updateMatchRowHighlighting(matchId);
+            
+            // Check if we're violating the 4-player rule
+            if (data.rule_violation && data.assigned) {
+                showToast(`Regel overtreding: ${data.match_player_count} spelers toegewezen (regel is max 4)`, 'warning');
+            } else {
+                showToast('Planning bijgewerkt!', 'success');
+            }
         } else {
             showToast(data.error || 'Fout bij bijwerken planning', 'error');
         }
@@ -537,35 +596,62 @@ function toggleCell(cell, playerId, matchId) {
 }
 
 function updatePlayerStats(playerId, stats) {
-    // Find the player column
-    const playerColumn = document.querySelector(`th[data-player-id="${playerId}"]`);
-    if (!playerColumn) return;
+    // Update totals cell with ID
+    const totalCell = document.getElementById(`total-${playerId}`);
+    if (totalCell) {
+        totalCell.textContent = stats.total_matches;
+    }
     
-    const playerIndex = Array.from(playerColumn.parentElement.children).indexOf(playerColumn);
+    // Update percentage cell with ID
+    const percentageCell = document.getElementById(`percentage-${playerId}`);
+    if (percentageCell) {
+        percentageCell.textContent = `${Math.round(stats.percentage)}%`;
+    }
+}
+
+function updateMatchRowHighlighting(matchId) {
+    // Find the match row
+    const matchRow = document.querySelector(`tr[data-match-id="${matchId}"]`);
+    if (!matchRow) return;
     
-    // Update totals row
-    const totalsRow = document.querySelector('tfoot tr:nth-child(1)');
-    if (totalsRow) {
-        const totalCell = totalsRow.children[playerIndex];
-        if (totalCell) {
-            totalCell.innerHTML = `<strong>${stats.total_matches}</strong>`;
+    // Count assigned players in this row
+    const assignedCells = matchRow.querySelectorAll('.player-assigned');
+    const playerCount = assignedCells.length;
+    
+    // Update row highlighting
+    if (playerCount > 4) {
+        matchRow.classList.add('table-warning');
+    } else {
+        matchRow.classList.remove('table-warning');
+    }
+    
+    // Update or add the badge in the match info
+    const matchInfo = matchRow.querySelector('.match-details strong');
+    if (matchInfo) {
+        // Remove existing badge
+        const existingBadge = matchInfo.querySelector('.badge');
+        if (existingBadge) {
+            existingBadge.remove();
+        }
+        
+        // Add new badge if over 4 players
+        if (playerCount > 4) {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-danger ms-1';
+            badge.title = 'Meer dan 4 spelers - regel overtreding!';
+            badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${playerCount}`;
+            matchInfo.appendChild(badge);
         }
     }
     
-    // Update percentage row
-    const percentageRow = document.querySelector('tfoot tr:nth-child(2)');
-    if (percentageRow) {
-        const percentageCell = percentageRow.children[playerIndex];
-        if (percentageCell) {
-            percentageCell.innerHTML = `<strong>${Math.round(stats.percentage)}%</strong>`;
-        }
-    }
+    // Update data attribute
+    matchRow.setAttribute('data-player-count', playerCount);
 }
 
 function showToast(message, type = 'info') {
     // Create toast element
     const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'error' ? 'danger' : 'success'} toast-message`;
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'success'} toast-message`;
     toast.style.cssText = `
         position: fixed;
         top: 20px;
@@ -577,7 +663,7 @@ function showToast(message, type = 'info') {
     `;
     toast.innerHTML = `
         <div class="d-flex align-items-center">
-            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 'check-circle'} me-2"></i>
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-triangle' : 'check-circle'} me-2"></i>
             ${message}
         </div>
     `;
@@ -591,7 +677,7 @@ function showToast(message, type = 'info') {
     setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => document.body.removeChild(toast), 300);
-    }, 3000);
+    }, type === 'warning' ? 4000 : 3000); // Warning stays longer
 }
 
 // Export functions (placeholder - need actual implementation)

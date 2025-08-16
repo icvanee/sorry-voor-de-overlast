@@ -463,6 +463,13 @@ def edit_matrix_cell(version_id):
         
         conn.commit()
         
+        # Check if this match now has more than 4 players (rule violation)
+        cursor.execute('''
+            SELECT COUNT(*) as player_count FROM match_planning 
+            WHERE planning_version_id = %s AND match_id = %s
+        ''', (version_id, match_id))
+        match_player_count = cursor.fetchone()['player_count']
+        
         # Get updated statistics for this player
         cursor.execute('''
             SELECT COUNT(*) as total FROM match_planning mp
@@ -480,6 +487,8 @@ def edit_matrix_cell(version_id):
         return jsonify({
             'success': True,
             'assigned': assigned,
+            'match_player_count': match_player_count,
+            'rule_violation': match_player_count > 4,
             'stats': {
                 'total_matches': total_matches,
                 'percentage': percentage

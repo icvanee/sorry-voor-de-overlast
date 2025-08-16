@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Wedstrijd Bewerken{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Wedstrijd Bewerken</h1>
+            <a href="{{ url_for('matches.match_detail', match_id=match.id) }}" 
+               class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                <i class="fas fa-arrow-left"></i> Terug
+            </a>
+        </div>
+
+        <form method="POST" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Match Number -->
+                <div>
+                    <label for="match_number" class="block text-sm font-medium text-gray-700 mb-2">
+                        Wedstrijd Nummer (optioneel)
+                    </label>
+                    <input type="text" 
+                           id="match_number" 
+                           name="match_number" 
+                           value="{{ match.match_number or '' }}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Bijv. 101">
+                </div>
+
+                <!-- Date -->
+                <div>
+                    <label for="date" class="block text-sm font-medium text-gray-700 mb-2">
+                        Datum <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" 
+                           id="date" 
+                           name="date" 
+                           value="{{ match.date }}"
+                           required 
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Home Team -->
+                <div>
+                    <label for="home_team" class="block text-sm font-medium text-gray-700 mb-2">
+                        Thuisteam <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" 
+                           id="home_team" 
+                           name="home_team" 
+                           value="{{ match.home_team }}"
+                           required 
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Naam van het thuisteam">
+                </div>
+
+                <!-- Away Team -->
+                <div>
+                    <label for="away_team" class="block text-sm font-medium text-gray-700 mb-2">
+                        Uitteam <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" 
+                           id="away_team" 
+                           name="away_team" 
+                           value="{{ match.away_team }}"
+                           required 
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Naam van het uitteam">
+                </div>
+            </div>
+
+            <!-- Venue -->
+            <div>
+                <label for="venue" class="block text-sm font-medium text-gray-700 mb-2">
+                    Locatie/Venue
+                </label>
+                <input type="text" 
+                       id="venue" 
+                       name="venue" 
+                       value="{{ match.venue or '' }}"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Bijv. Café De Kroeg, Straatnaam 123">
+            </div>
+
+            <!-- Checkboxes -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex items-center">
+                    <input type="checkbox" 
+                           id="is_home" 
+                           name="is_home" 
+                           value="true"
+                           {% if match.is_home %}checked{% endif %}
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <label for="is_home" class="ml-2 block text-sm text-gray-700">
+                        🏠 Thuiswedstrijd voor ons team
+                    </label>
+                </div>
+
+                <div class="flex items-center">
+                    <input type="checkbox" 
+                           id="is_friendly" 
+                           name="is_friendly" 
+                           value="true"
+                           {% if match.is_friendly %}checked{% endif %}
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <label for="is_friendly" class="ml-2 block text-sm text-gray-700">
+                        🤝 Vriendschappelijke wedstrijd
+                    </label>
+                </div>
+            </div>
+
+            <!-- Submit buttons -->
+            <div class="flex justify-end space-x-3 pt-6">
+                <a href="{{ url_for('matches.match_detail', match_id=match.id) }}" 
+                   class="px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                    Annuleren
+                </a>
+                <button type="submit" 
+                        class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                    <i class="fas fa-save"></i> Wedstrijd Bijwerken
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

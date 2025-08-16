@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
-from app.services.planning import PlanningVersion, MatchPlanning, AutoPlanner
+from app.services.planning import PlanningVersion, MatchPlanning, AutoPlanningService
 from app.models.player import Player
 from app.models.match import Match
 from datetime import datetime
@@ -51,12 +51,12 @@ def create_version():
             
             if auto_generate and not copy_from:
                 # Auto-generate planning for new version
-                auto_planner = AutoPlanner()
+                auto_planner = AutoPlanningService()
                 auto_planner.generate_planning(version_id)
                 flash('Automatic planning generated!', 'info')
             elif auto_generate and copy_from:
                 # Auto-generate only for non-pinned matches
-                auto_planner = AutoPlanner()
+                auto_planner = AutoPlanningService()
                 auto_planner.generate_planning_selective(version_id, exclude_pinned=True)
                 flash('Automatic planning generated for non-pinned matches!', 'info')
             
@@ -108,7 +108,7 @@ def pin_match(version_id, match_id):
 def regenerate_planning(version_id):
     """Regenerate planning for non-pinned matches."""
     try:
-        auto_planner = AutoPlanner()
+        auto_planner = AutoPlanningService()
         auto_planner.generate_planning_selective(version_id, exclude_pinned=True)
         flash('Planning regenerated for non-pinned matches!', 'success')
     except Exception as e:
@@ -159,7 +159,7 @@ def match_planning(match_id):
         match_planning[match_id]['players'].append(item)
     
     # Get player statistics
-    planner = AutoPlanner()
+    planner = AutoPlanningService()
     player_stats = planner.get_player_statistics(version_id)
     
     return render_template('planning/view.html', 
@@ -271,7 +271,7 @@ def compare_versions():
             version_id = int(version_id)
             version = PlanningVersion.get_by_id(version_id)
             if version:
-                planner = AutoPlanner()
+                planner = AutoPlanningService()
                 stats = planner.get_player_statistics(version_id)
                 comparison_data[version_id] = {
                     'version': version,

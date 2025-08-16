@@ -362,23 +362,99 @@ class AutoPlanningService:
     @staticmethod
     def generate_planning(version_id, constraints=None):
         """Generate automatic planning for a version based on constraints."""
-        # Implementation would go here - this is a complex algorithm
-        # For now, return a simple result
+        from app.models.match import Match
+        from app.models.player import Player
+        import random
+        
+        # Get all matches for this planning version
+        matches = Match.get_all()
+        if not matches:
+            return {
+                'status': 'error',
+                'message': 'No matches found to plan',
+                'matches_planned': 0
+            }
+        
+        # Get all active players
+        players = Player.get_all()
+        if not players:
+            return {
+                'status': 'error', 
+                'message': 'No players found to assign',
+                'matches_planned': 0
+            }
+        
+        matches_planned = 0
+        player_list = list(players)
+        
+        # Simple algorithm: assign 4 random players per match
+        for match in matches:
+            # Randomly select 4 players for this match
+            selected_players = random.sample(player_list, min(4, len(player_list)))
+            player_ids = [p['id'] for p in selected_players]
+            
+            # Set the planning for this match
+            MatchPlanning.set_planning(version_id, match['id'], player_ids)
+            matches_planned += 1
+        
         return {
             'status': 'success',
-            'message': 'Auto planning not yet implemented',
-            'matches_planned': 0
+            'message': f'Planning generated for {matches_planned} matches',
+            'matches_planned': matches_planned
         }
     
     @staticmethod
     def generate_planning_selective(version_id, exclude_pinned=False):
         """Generate planning selectively, optionally excluding pinned matches."""
-        # Implementation would go here - this is a complex algorithm
-        # For now, return a simple result
+        from app.models.match import Match
+        from app.models.player import Player
+        import random
+        
+        # Get all matches for this planning version
+        matches = Match.get_all()
+        if not matches:
+            return {
+                'status': 'error',
+                'message': 'No matches found to plan',
+                'matches_planned': 0
+            }
+        
+        # Get all active players
+        players = Player.get_all()
+        if not players:
+            return {
+                'status': 'error', 
+                'message': 'No players found to assign',
+                'matches_planned': 0
+            }
+        
+        # Get pinned matches if we need to exclude them
+        pinned_match_ids = set()
+        if exclude_pinned:
+            pinned_matches = MatchPlanning.get_pinned_matches(version_id)
+            pinned_match_ids = {row['match_id'] for row in pinned_matches}
+        
+        matches_planned = 0
+        player_list = list(players)
+        
+        # Simple algorithm: assign 4 random players per match
+        for match in matches:
+            # Skip pinned matches if requested
+            if exclude_pinned and match['id'] in pinned_match_ids:
+                continue
+                
+            # Randomly select 4 players for this match
+            selected_players = random.sample(player_list, min(4, len(player_list)))
+            player_ids = [p['id'] for p in selected_players]
+            
+            # Set the planning for this match
+            MatchPlanning.set_planning(version_id, match['id'], player_ids)
+            matches_planned += 1
+        
         return {
-            'status': 'success', 
-            'message': 'Selective auto planning not yet implemented',
-            'matches_planned': 0
+            'status': 'success',
+            'message': f'Planning generated for {matches_planned} matches',
+            'matches_planned': matches_planned
         }
     
     @staticmethod

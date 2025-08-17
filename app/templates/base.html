@@ -24,10 +24,12 @@
             <div class="navbar-nav ms-auto align-items-center">
                 <span class="navbar-text me-3">Seizoen 2025-2026 | 4A</span>
                 {% if current_user %}
-                <span class="navbar-text me-2">
+                <a class="navbar-text me-2 text-white text-decoration-none" 
+                   href="{{ url_for('players.player_availability', player_id=current_user.id) }}" 
+                   title="Ga naar mijn beschikbaarheid">
                     <i class="fas fa-user"></i> {{ current_user.name }}
                     <small class="text-light ms-1">({{ (current_user.role or 'speler')|capitalize }})</small>
-                </span>
+                </a>
                 <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.logout') }}">Logout</a>
                 {% else %}
                 <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.login') }}">Login</a>

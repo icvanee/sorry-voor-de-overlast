@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2"><i class="fas fa-chart-bar"></i> Statistieken - {{ player.name }}</h1>
+  <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-group me-2">
+      <a href="{{ url_for('players.list_players') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Terug naar Spelers
+      </a>
+      <a href="{{ url_for('players.player_availability', player_id=player.id) }}" class="btn btn-sm btn-outline-info">
+        <i class="fas fa-calendar-check"></i> Beschikbaarheid
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card card-stat">
+      <div class="card-body">
+        <h6 class="text-muted mb-2">Gepland (actieve planning)</h6>
+        <div class="d-flex align-items-center">
+          <span class="display-6 me-3">{{ sp_stats.matches_planned if sp_stats else 0 }}</span>
+          <div>
+            <span class="badge bg-success me-1">Thuis: {{ sp_stats.home_matches if sp_stats else 0 }}</span>
+            <span class="badge bg-primary">Uit: {{ sp_stats.away_matches if sp_stats else 0 }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-stat">
+      <div class="card-body">
+        <h6 class="text-muted mb-2">Gespeeld (actieve planning)</h6>
+        <div class="d-flex align-items-center">
+          <span class="display-6 me-3">{{ sp_stats.matches_played if sp_stats else 0 }}</span>
+          <div class="text-muted">van {{ sp_stats.matches_planned if sp_stats else 0 }} ({{ percent_played }}%)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-stat">
+      <div class="card-body">
+        <h6 class="text-muted mb-2">Beschikbaarheid</h6>
+        {% set total = availability.total_matches if availability else 0 %}
+        {% set avail = availability.available if availability else 0 %}
+        {% set percentage = (avail / total * 100) | round(0) if total > 0 else 0 %}
+        <div class="d-flex align-items-center">
+          <span class="display-6 me-3">{{ percentage }}%</span>
+          <div class="text-muted">{{ avail }}/{{ total }} beschikbaar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header">
+    <h5 class="mb-0"><i class="fas fa-list"></i> Overzicht</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Geplande wedstrijden
+            <span class="badge bg-dark rounded-pill">{{ sp_stats.matches_planned if sp_stats else 0 }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Thuis (gepland)
+            <span class="badge bg-success rounded-pill">{{ sp_stats.home_matches if sp_stats else 0 }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Uit (gepland)
+            <span class="badge bg-primary rounded-pill">{{ sp_stats.away_matches if sp_stats else 0 }}</span>
+          </li>
+        </ul>
+      </div>
+      <div class="col-md-6">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Daadwerkelijk gespeeld (actieve planning)
+            <span class="badge bg-info rounded-pill">{{ sp_stats.matches_played if sp_stats else 0 }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Gespeelde wedstrijden totaal (historisch)
+            <span class="badge bg-secondary rounded-pill">{{ history.played if history else 0 }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Afgeronde teamwedstrijden (in planning)
+            <span class="badge bg-warning text-dark rounded-pill">{{ sp_stats.completed_matches if sp_stats else 0 }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -117,8 +117,9 @@
                                 </td>
                                 <td>
                                     {% if player.match_stats %}
-                                        {% set planned = player.match_stats.matches_planned or 0 %}
-                                        {% set played = player.match_stats.matches_played or 0 %}
+                                        {# Planned should come from active planning stats, not match_stats #}
+                                        {% set planned = (player.active_planning_stats.matches_planned if player.active_planning_stats else 0) or 0 %}
+                                        {% set played = player.match_stats.played or 0 %}
                                         {% if played > 0 or planned > 0 %}
                                             <div class="text-center">
                                                 <span class="badge bg-success fs-6">{{ played }}</span>

@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from app.utils.auth import login_required, roles_required, get_current_user
 from app.models.player import Player
 from app.models.match import Match
+from app.services.single_planning import SinglePlanning
 
 players = Blueprint('players', __name__)
 
@@ -186,6 +187,7 @@ def player_availability(player_id):
                          can_edit=can_edit)
 
 @players.route('/<int:player_id>/stats')
+@login_required
 def player_stats(player_id):
     """Show player statistics."""
     player = Player.get_by_id(player_id)
@@ -193,10 +195,19 @@ def player_stats(player_id):
         flash('Player not found!', 'error')
         return redirect(url_for('players.list_players'))
     
-    # TODO: Calculate actual statistics
-    stats = {
-        'matches_played': 0,
-        'matches_planned': 0,
-        'availability_percentage': 100
-    }
-    return render_template('players/stats.html', player=player, stats=stats)
+    # Collect statistics
+    sp_stats = SinglePlanning.get_player_stats(player_id)  # active planning stats
+    availability = Player.get_availability_stats(player_id)
+    history = Player.get_match_stats(player_id)  # actually played over time
+
+    # Compute simple ratios
+    planned = sp_stats.get('matches_planned', 0) if sp_stats else 0
+    played = sp_stats.get('matches_played', 0) if sp_stats else 0
+    percent_played = round((played / planned * 100), 0) if planned > 0 else 0
+
+    return render_template('players/stats.html', 
+                           player=player, 
+                           sp_stats=sp_stats,
+                           availability=availability,
+                           history=history,
+                           percent_played=int(percent_played))

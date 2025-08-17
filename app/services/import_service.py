@@ -252,10 +252,10 @@ class ImportService:
                     if player_name.lower() not in existing_names:
                         result['messages'].append(f"Importing player: {player_name} ({player_role})")
                         
+                        # is_active defaults to TRUE in schema; Player.create doesn't accept is_active
                         Player.create(
                             name=player_name,
-                            role=player_role,
-                            is_active=True
+                            role=player_role
                         )
                         result['imported'] += 1
                         existing_names.add(player_name.lower())

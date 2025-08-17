@@ -12,6 +12,14 @@
         .nav-link.active { background-color: #dc3545; color: white; }
         .card-stat { border-left: 4px solid #dc3545; }
         .partner-badge { background-color: #6f42c1; }
+        /* Reserve space for fixed footer */
+        body { padding-bottom: 40px; }
+        .version-footer { 
+            background-color: #f8f9fa; 
+            border-top: 1px solid #dee2e6; 
+            font-size: 0.85rem; 
+            color: #6c757d; 
+        }
     </style>
 </head>
 <body>
@@ -122,6 +130,10 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Version footer -->
+    <div class="version-footer fixed-bottom text-center py-1">
+        Versie 2025.8.17.1
+    </div>
     {% block scripts %}{% endblock %}
 </body>
 </html>

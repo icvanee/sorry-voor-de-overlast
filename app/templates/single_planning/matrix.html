@@ -31,7 +31,7 @@
 <!-- Matrix Controls -->
 <div class="card mb-4">
     <div class="card-body">
-        <div class="row">
+        <div class="row g-3 align-items-center">
             <div class="col-md-4">
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="showHomeAway" checked>
@@ -49,7 +49,21 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="alert alert-info mb-0 py-2">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label for="planMode" class="form-label mb-1">Plan modus</label>
+                        <select id="planMode" class="form-select form-select-sm">
+                            <option value="all" selected>Alle wedstrijden</option>
+                            <option value="until_date">Tot en met datum</option>
+                            <option value="rest">Vanaf datum (rest)</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label for="cutoffDate" class="form-label mb-1">Grensdatum</label>
+                        <input id="cutoffDate" type="date" class="form-control form-control-sm" placeholder="YYYY-MM-DD">
+                    </div>
+                </div>
+                <div class="alert alert-info mb-0 mt-2 py-2">
                     <small>
                         <i class="fas fa-mouse-pointer"></i> 
                         <strong>Tip:</strong> Klik op een cel om speler toe te wijzen/verwijderen
@@ -697,7 +711,19 @@ function updateMatchRowHighlighting(matchId) {
 function regeneratePlanning() {
     console.log('🔄 Regenerate button clicked');
     
-    if (!confirm('🔄 Planning regenereren?\n\n✅ Vastgepinde spelers blijven op hun plek\n🔄 Toegewezen spelers worden opnieuw verdeeld\n\nDoorgaan?')) {
+    const planModeEl = document.getElementById('planMode');
+    const cutoffDateEl = document.getElementById('cutoffDate');
+    const planMode = planModeEl ? planModeEl.value : 'all';
+    const cutoffDate = cutoffDateEl ? cutoffDateEl.value : '';
+
+    if (planMode !== 'all' && !cutoffDate) {
+        showToast('Kies een grensdatum bij deze planmodus.', 'warning');
+        return;
+    }
+
+    const modeText = planMode === 'all' ? 'alle wedstrijden' : planMode === 'until_date' ? `wedstrijden tot en met ${cutoffDate || '...datum...'}` : `wedstrijden vanaf ${cutoffDate || '...datum...'}`;
+
+    if (!confirm(`🔄 Planning regenereren voor ${modeText}?\n\n✅ Vastgepinde spelers blijven op hun plek\n🔄 Toegewezen spelers worden opnieuw verdeeld\n\nDoorgaan?`)) {
         console.log('❌ User cancelled regeneration');
         return;
     }
@@ -716,7 +742,7 @@ function regeneratePlanning() {
         // Use XMLHttpRequest instead of fetch for better compatibility
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/planning/api/regenerate', true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Content-Type', 'application/json');
         
         xhr.onreadystatechange = function() {
             console.log('🔗 XHR state:', xhr.readyState, 'Status:', xhr.status);
@@ -754,7 +780,11 @@ function regeneratePlanning() {
         };
         
         console.log('📤 Sending regenerate request...');
-        xhr.send('{}');
+        const payload = {
+            plan_mode: planMode,
+            cutoff_date: cutoffDate || null
+        };
+        xhr.send(JSON.stringify(payload));
     } else {
         console.error('❌ Button not found');
         alert('Knop niet gevonden');

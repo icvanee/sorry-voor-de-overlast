@@ -210,7 +210,7 @@ class SinglePlanning:
         }
     
     @staticmethod
-    def regenerate_planning(exclude_pinned=True):
+    def regenerate_planning(exclude_pinned=True, plan_mode='all', cutoff_date=None):
         """
         🎯 KERNFUNCTIE: Volledige planning regeneratie volgens alle regels
         
@@ -225,6 +225,8 @@ class SinglePlanning:
         
         Args:
             exclude_pinned: Als True, behoud vastgepinde spelers
+            plan_mode: 'all' | 'until_date' | 'from_date' (alias: 'rest')
+            cutoff_date: str of datetime.date (YYYY-MM-DD) als grensdatum
         """
         print("=" * 80)
         print("🎯 STARTING COMPLETE PLANNING REGENERATION")
@@ -240,17 +242,67 @@ class SinglePlanning:
             # Get alle matches
             cursor.execute('SELECT * FROM matches ORDER BY match_date, id')
             all_matches = cursor.fetchall()
-            unplayed_matches = [m for m in all_matches if not m.get('is_played', False)]
-            
+            unplayed_all = [m for m in all_matches if not m.get('is_played', False)]
+
+            # Parse cutoff_date if provided
+            cutoff_dt = None
+            if cutoff_date:
+                try:
+                    if isinstance(cutoff_date, str):
+                        cutoff_dt = datetime.strptime(cutoff_date, '%Y-%m-%d').date()
+                    else:
+                        cutoff_dt = cutoff_date
+                except Exception as e:
+                    print(f"   ⚠️ Invalid cutoff_date provided: {cutoff_date} ({e}) - ignoring")
+                    cutoff_dt = None
+
+            # Bepaal doel-wedstrijden op basis van plan_mode
+            def match_in_scope(m):
+                if not cutoff_dt:
+                    return True
+                mdate = m.get('match_date')
+                try:
+                    # mdate kan datetime of date zijn; normaliseer naar date
+                    mdate_d = mdate.date() if hasattr(mdate, 'date') else mdate
+                except Exception:
+                    mdate_d = mdate
+                if plan_mode in ('until_date',):
+                    return mdate_d is None or (mdate_d <= cutoff_dt)
+                if plan_mode in ('from_date', 'rest'):
+                    return mdate_d is None or (mdate_d >= cutoff_dt)
+                return True
+
+            if plan_mode not in ('all', 'until_date', 'from_date', 'rest'):
+                print(f"   ⚠️ Unknown plan_mode '{plan_mode}', defaulting to 'all'")
+                plan_mode = 'all'
+
+            target_matches = [m for m in unplayed_all if (plan_mode == 'all' or match_in_scope(m))]
+
             # Get alle active players
             cursor.execute('SELECT * FROM players WHERE is_active = TRUE ORDER BY name')
             active_players = cursor.fetchall()
+            # Quick lookup by id for partner/preference checks
+            players_by_id = {p['id']: p for p in active_players}
             
-            print(f"   � Total matches: {len(all_matches)} | Unplayed: {len(unplayed_matches)}")
+            print(f"   � Total matches: {len(all_matches)} | Unplayed: {len(unplayed_all)} | In scope: {len(target_matches)} (mode={plan_mode}, cutoff={cutoff_dt})")
             print(f"   👥 Active players: {len(active_players)}")
             
-            if not unplayed_matches or not active_players:
+            if not target_matches or not active_players:
                 return {'success': False, 'message': 'Geen wedstrijden of actieve spelers gevonden'}
+
+            # === (OPTIONEEL) TUSSENSTAP: CLEAN AFTER CUTOFF FOR UNTIL_DATE MODE ===
+            if plan_mode == 'until_date' and cutoff_dt:
+                print("\n🧹 STEP 2b: CLEANING ASSIGNMENTS AFTER CUTOFF DATE (inclusive pinnen)...")
+                cursor.execute('''
+                    DELETE FROM match_planning mp
+                    USING matches m
+                    WHERE mp.planning_version_id = 1
+                      AND mp.match_id = m.id
+                      AND m.match_date > %s
+                ''', (cutoff_dt,))
+                cleaned = cursor.rowcount
+                conn.commit()
+                print(f"   🧹 Deleted {cleaned} assignments after {cutoff_dt}")
             
             # === STAP 2: VERZAMEL AVAILABILITY DATA ===
             print("\n📋 STEP 2: COLLECTING AVAILABILITY...")
@@ -300,18 +352,24 @@ class SinglePlanning:
             # === STAP 4: CLEAR ALLE NON-PINNED ASSIGNMENTS ===
             print("\n🗑️ STEP 4: CLEARING NON-PINNED ASSIGNMENTS...")
             
-            if exclude_pinned:
-                cursor.execute('''
-                    DELETE FROM match_planning 
-                    WHERE planning_version_id = 1 AND is_pinned = FALSE
-                ''')
-                deleted = cursor.rowcount
-                print(f"   🗑️ Deleted {deleted} non-pinned assignments")
-            else:
-                cursor.execute('DELETE FROM match_planning WHERE planning_version_id = 1')
-                deleted = cursor.rowcount
-                print(f"   🗑️ Deleted {deleted} total assignments")
-                pinned_assignments = {}
+            # Beperk verwijdering tot doelwedstrijden om buiten scope niets te wijzigen
+            target_match_ids = [m['id'] for m in target_matches]
+            if target_match_ids:
+                if exclude_pinned:
+                    cursor.execute('''
+                        DELETE FROM match_planning 
+                        WHERE planning_version_id = 1 AND is_pinned = FALSE AND match_id = ANY(%s)
+                    ''', (target_match_ids,))
+                    deleted = cursor.rowcount
+                    print(f"   🗑️ Deleted {deleted} non-pinned assignments in scope")
+                else:
+                    cursor.execute('''
+                        DELETE FROM match_planning 
+                        WHERE planning_version_id = 1 AND match_id = ANY(%s)
+                    ''', (target_match_ids,))
+                    deleted = cursor.rowcount
+                    print(f"   🗑️ Deleted {deleted} total assignments in scope")
+                    pinned_assignments = {k: v for k, v in pinned_assignments.items() if k not in set(target_match_ids)}
             
             conn.commit()
             
@@ -325,10 +383,10 @@ class SinglePlanning:
             # Track recent matches for variatie (last 3 matches played by each player)
             recent_matches_by_player = {p['id']: [] for p in active_players}
             
-            # Count pinned matches
+            # Count pinned matches across alle ongespeelde wedstrijden (niet alleen scope)
             for match_id, player_ids in pinned_assignments.items():
-                # Find match info
-                match_info = next((m for m in unplayed_matches if m['id'] == match_id), None)
+                # Find match info in alle ongespeelde
+                match_info = next((m for m in unplayed_all if m['id'] == match_id), None)
                 if match_info:
                     for player_id in player_ids:
                         if player_id in player_match_counts:
@@ -340,6 +398,21 @@ class SinglePlanning:
             
             print(f"   � Initial match counts (from pinned): {dict(list(player_match_counts.items())[:3])}...")
             
+            # === STAP 5b: FAIRNESS CAPS PER SPELER (BINNEN SCOPE) ===
+            print("\n⚖️ STEP 5b: COMPUTING FAIRNESS CAPS...")
+            total_slots_target = len(target_matches) * 4
+            pinned_in_target_total = sum(len(pinned_assignments.get(m['id'], [])) for m in target_matches)
+            # Maximalen per speler binnen scope (ceil)
+            num_players_active = max(1, len(active_players))
+            max_per_player_target = (total_slots_target + num_players_active - 1) // num_players_active
+            # Huidige tellers per speler voor scope (start met gepinden in scope)
+            fairness_counts = {p['id']: 0 for p in active_players}
+            for m in target_matches:
+                for pid in pinned_assignments.get(m['id'], []):
+                    if pid in fairness_counts:
+                        fairness_counts[pid] += 1
+            print(f"   🎯 Target slots: {total_slots_target}, pinned in scope: {pinned_in_target_total}, cap per speler: {max_per_player_target}")
+
             # === STAP 6: GENERATE COMPLETE PLANNING ===
             print("\n🎯 STEP 6: GENERATING COMPLETE PLANNING...")
             
@@ -347,7 +420,7 @@ class SinglePlanning:
             total_assignments = 0
             rule_violations = []
             
-            for match in unplayed_matches:
+            for match in target_matches:
                 match_id = match['id']
                 match_date = match.get('match_date')
                 is_home = match.get('is_home', False)
@@ -410,14 +483,103 @@ class SinglePlanning:
                             print(f"         ❌ {player['name']}: {'unavailable' if not is_available else 'date conflict'}")
                     
                     print(f"      ✅ Available candidates: {len(candidates)}")
-                    
-                    # === RULE 4: Sort by fairness with VARIATIE! ===
+
+                    # === NEW: PARTNER PRIORITY SELECTION ===
+                    selected_candidates = []
+                    selected_ids = set()
+                    remaining_needed = needed_players
+
+                    # Build quick index by player id for candidates
+                    candidates_by_id = {c['player']['id']: c for c in candidates}
+
+                    # 6a. Add partners of pinned players first (if both prefer together and partner is available)
+                    for pinned_id in existing_pinned:
+                        if remaining_needed <= 0:
+                            break
+                        pinned_player = players_by_id.get(pinned_id)
+                        if not pinned_player:
+                            continue
+                        partner_id = pinned_player.get('partner_id')
+                        if not partner_id or partner_id in existing_pinned:
+                            continue
+                        partner = players_by_id.get(partner_id)
+                        # Both should prefer playing together
+                        if partner and pinned_player.get('prefer_partner_together', True) and partner.get('prefer_partner_together', True):
+                            # Partner must be an eligible candidate for this match
+                            cand = candidates_by_id.get(partner_id)
+                            # FAIRNESS FIRST: don't exceed cap
+                            if cand and partner_id not in selected_ids and fairness_counts.get(partner_id, 0) < max_per_player_target:
+                                selected_candidates.append(cand)
+                                selected_ids.add(partner_id)
+                                remaining_needed -= 1
+                                fairness_counts[partner_id] = fairness_counts.get(partner_id, 0) + 1
+                                print(f"         🤝 Added partner of pinned: {partner.get('name')} (for {pinned_player.get('name')})")
+
+                    # 6b. Form partner pairs among remaining candidates (both prefer together)
+                    if remaining_needed > 0:
+                        # Collect pair options (avoid duplicates)
+                        pairs = []  # each item: (combined_score, (cand_a, cand_b))
+                        seen_pairs = set()
+                        for cid, cand in candidates_by_id.items():
+                            if cid in selected_ids:
+                                continue
+                            player = cand['player']
+                            partner_id = player.get('partner_id')
+                            if not partner_id:
+                                continue
+                            if partner_id in existing_pinned:
+                                # Partner already pinned; this case handled earlier
+                                continue
+                            # Both sides should be candidates and prefer together
+                            partner_cand = candidates_by_id.get(partner_id)
+                            partner_player = players_by_id.get(partner_id)
+                            if not partner_cand or not partner_player:
+                                continue
+                            if not (player.get('prefer_partner_together', True) and partner_player.get('prefer_partner_together', True)):
+                                continue
+                            # FAIRNESS FIRST: skip pairs that would break caps
+                            if not (fairness_counts.get(cid, 0) < max_per_player_target and fairness_counts.get(partner_id, 0) < max_per_player_target):
+                                continue
+                            # Create an order-independent key to avoid duplicates
+                            pair_key = tuple(sorted([cid, partner_id]))
+                            if pair_key in seen_pairs:
+                                continue
+                            seen_pairs.add(pair_key)
+                            # Compute a fairness-oriented combined score (lower is better)
+                            combined_score = (
+                                cand['match_count'] + partner_cand['match_count'] +
+                                0.5 * (cand['recent_penalty'] + partner_cand['recent_penalty'])
+                            )
+                            pairs.append((combined_score, (cand, partner_cand)))
+
+                        # Sort pairs by best combined score
+                        pairs.sort(key=lambda x: x[0])
+
+                        for _, (cand_a, cand_b) in pairs:
+                            if remaining_needed < 2:
+                                break
+                            a_id = cand_a['player']['id']
+                            b_id = cand_b['player']['id']
+                            if a_id in selected_ids or b_id in selected_ids:
+                                continue
+                            selected_candidates.extend([cand_a, cand_b])
+                            selected_ids.update([a_id, b_id])
+                            remaining_needed -= 2
+                            fairness_counts[a_id] = fairness_counts.get(a_id, 0) + 1
+                            fairness_counts[b_id] = fairness_counts.get(b_id, 0) + 1
+                            print(f"         👥 Added partner pair: {cand_a['player']['name']} + {cand_b['player']['name']}")
+
+                    # === RULE 4: Sort by fairness with VARIATIE! for remaining slots ===
                     import random
-                    
-                    if len(candidates) > needed_players:
+
+                    remaining_candidates_all = [c for c in candidates if c['player']['id'] not in selected_ids]
+                    # Apply fairness cap filter first
+                    remaining_candidates = [c for c in remaining_candidates_all if fairness_counts.get(c['player']['id'], 0) < max_per_player_target]
+
+                    if len(remaining_candidates) > remaining_needed and remaining_needed > 0:
                         # Group candidates by combined score (match_count + recent_penalty for better fairness)
                         candidates_by_score = {}
-                        for c in candidates:
+                        for c in remaining_candidates:
                             # Combined score: total matches + recent play penalty (0-3)
                             score = c['match_count'] + (c['recent_penalty'] * 0.5)  # Weight recent play
                             score_key = round(score, 1)
@@ -427,9 +589,7 @@ class SinglePlanning:
                             candidates_by_score[score_key].append(c)
                         
                         # Select with variatie: prioritize lower scores, add randomness
-                        selected_candidates = []
-                        remaining_needed = needed_players
-                        
+                        # Keep already selected in selected_candidates, fill remaining_needed
                         # Sort scores (lowest first for fairness)
                         sorted_scores = sorted(candidates_by_score.keys())
                         
@@ -460,13 +620,47 @@ class SinglePlanning:
                             ))
                             
                             selected_candidates.extend(group[:take])
+                            selected_ids.update([x['player']['id'] for x in group[:take]])
+                            for x in group[:take]:
+                                fairness_counts[x['player']['id']] = fairness_counts.get(x['player']['id'], 0) + 1
                             remaining_needed -= take
                             
                             print(f"         🎲 From {len(group)} players with score {score}: selected {take}")
                     else:
-                        # Not enough candidates - take all
-                        selected_candidates = candidates
+                        # Not enough candidates or exact fit - take what's left up to remaining_needed
+                        if remaining_needed > 0:
+                            # Prefer under-cap, then if still needed, allow over-cap with best fairness
+                            take_from_under = min(remaining_needed, len(remaining_candidates))
+                            selected_candidates.extend(remaining_candidates[:take_from_under])
+                            selected_ids.update([x['player']['id'] for x in remaining_candidates[:take_from_under]])
+                            for x in remaining_candidates[:take_from_under]:
+                                fairness_counts[x['player']['id']] = fairness_counts.get(x['player']['id'], 0) + 1
+                            remaining_needed -= take_from_under
+                            if remaining_needed > 0:
+                                # Allow picking from all remaining ignoring cap, choose by lowest match_count
+                                overflow_pool = [c for c in remaining_candidates_all if c['player']['id'] not in selected_ids]
+                                overflow_pool.sort(key=lambda c: (c['match_count'], c['recent_penalty']))
+                                take_overflow = min(remaining_needed, len(overflow_pool))
+                                selected_candidates.extend(overflow_pool[:take_overflow])
+                                selected_ids.update([x['player']['id'] for x in overflow_pool[:take_overflow]])
+                                for x in overflow_pool[:take_overflow]:
+                                    fairness_counts[x['player']['id']] = fairness_counts.get(x['player']['id'], 0) + 1
+                                remaining_needed -= take_overflow
                     
+                    # FINAL BACKFILL: ensure we reach 4 if enough available candidates exist
+                    missing = max(0, 4 - (len(existing_pinned) + len(selected_candidates)))
+                    if missing > 0:
+                        # Take from any remaining eligible candidates (ignoring fairness/partner), best fairness-first
+                        leftovers = [c for c in candidates if c['player']['id'] not in selected_ids]
+                        if len(leftovers) >= missing:
+                            leftovers.sort(key=lambda c: (c['match_count'], c['recent_penalty']))
+                            add = leftovers[:missing]
+                            selected_candidates.extend(add)
+                            selected_ids.update([x['player']['id'] for x in add])
+                            for x in add:
+                                fairness_counts[x['player']['id']] = fairness_counts.get(x['player']['id'], 0) + 1
+                            missing = 0
+
                     print(f"      ⭐ Selected {len(selected_candidates)} players:")
                     
                     # Add assignments to database

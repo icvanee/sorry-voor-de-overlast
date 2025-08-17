@@ -223,9 +223,16 @@ def api_regenerate():
     """API: Regenerate planning while preserving pinned players."""
     try:
         print("🔄 Starting regeneration...")
-        
+        data = request.get_json(silent=True) or {}
+        plan_mode = data.get('plan_mode', 'all')  # 'all' | 'until_date' | 'from_date'/'rest'
+        cutoff_date = data.get('cutoff_date')     # 'YYYY-MM-DD' or None
+
         # Call the static method correctly
-        result = SinglePlanning.regenerate_planning(exclude_pinned=True)
+        result = SinglePlanning.regenerate_planning(
+            exclude_pinned=True,
+            plan_mode=plan_mode,
+            cutoff_date=cutoff_date
+        )
         
         print(f"🎯 Regeneration result: {result}")
         

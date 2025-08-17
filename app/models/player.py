@@ -9,13 +9,15 @@ class Player:
     
     @staticmethod
     def get_all():
-        """Get all active players."""
+        """Get all active players with partner names."""
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT * FROM players
-            WHERE is_active = true
-            ORDER BY name
+            SELECT p.*, partner.name as partner_name
+            FROM players p
+            LEFT JOIN players partner ON p.partner_id = partner.id AND partner.is_active = true
+            WHERE p.is_active = true
+            ORDER BY p.name
         ''')
         players = cursor.fetchall()
         cursor.close()

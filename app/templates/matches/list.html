@@ -12,6 +12,13 @@
                 <i class="fas fa-download"></i> Import Wedstrijden
             </a>
         </div>
+        <div class="btn-group">
+            <form method="POST" action="{{ url_for('main.clear_all_matches') }}" onsubmit="return confirm('⚠️ WAARSCHUWING: Dit verwijdert ALLE wedstrijden, planning en beschikbaarheid! Weet je het zeker?');" style="margin: 0;">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash"></i> Clear All
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 

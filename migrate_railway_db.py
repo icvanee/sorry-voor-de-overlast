@@ -142,7 +142,7 @@ def health_check():
     try:
         from app.models.player import Player
         from app.models.match import Match
-        from app.services.planning import PlanningVersion
+        # Single planning system - no need for PlanningVersion import
         
         print("\n🔍 Post-Migration Health Check:")
         print("-" * 35)
@@ -159,9 +159,15 @@ def health_check():
         matches = Match.get_all()
         print(f"✅ Matches: {len(matches)} found")
         
-        # Test Planning model
-        versions = PlanningVersion.get_all()
-        print(f"✅ Planning versions: {len(versions)} found")
+        # Single planning system - check match_planning table directly
+        from app.models.database import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) as count FROM match_planning WHERE planning_version_id = 1')
+        planning_count = cursor.fetchone()['count']
+        cursor.close()
+        conn.close()
+        print(f"✅ Single planning entries: {planning_count} found")
         
         print("\n🎯 All models operational!")
         return True

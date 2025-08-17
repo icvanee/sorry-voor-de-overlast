@@ -300,21 +300,38 @@ class Player:
 
     @staticmethod
     def get_active_planning_stats(player_id):
-        """Get match statistics for a player from the active planning only."""
-        from app.services.planning import PlanningVersion, MatchPlanning
+        """Get match statistics for a player from the single planning system."""
+        # Single planning system - get stats directly from match_planning with planning_version_id = 1
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT 
+                COUNT(*) as matches_planned,
+                COUNT(CASE WHEN m.is_home = true THEN 1 END) as home_matches,
+                COUNT(CASE WHEN m.is_home = false THEN 1 END) as away_matches,
+                COUNT(CASE WHEN mp.actually_played = true THEN 1 END) as matches_played
+            FROM match_planning mp
+            JOIN matches m ON mp.match_id = m.id
+            WHERE mp.player_id = %s AND mp.planning_version_id = 1
+        ''', (player_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
         
-        # Get the active planning version
-        active_version = PlanningVersion.get_active()
-        if not active_version:
+        if result:
+            return {
+                'matches_planned': result['matches_planned'] or 0,
+                'home_matches': result['home_matches'] or 0,
+                'away_matches': result['away_matches'] or 0,
+                'matches_played': result['matches_played'] or 0
+            }
+        else:
             return {
                 'matches_planned': 0,
                 'home_matches': 0,
                 'away_matches': 0,
                 'matches_played': 0
             }
-        
-        # Get stats for the active version only
-        return MatchPlanning.get_player_stats(active_version['id'], player_id)
 
     @staticmethod
     def get_availability(player_id, match_id):
@@ -345,6 +362,20 @@ class Player:
                 notes = EXCLUDED.notes,
                 updated_at = CURRENT_TIMESTAMP
         ''', (player_id, match_id, is_available, notes))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    @staticmethod
+    def update_role(player_id, role):
+        """Update a player's role."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE players 
+            SET role = %s 
+            WHERE id = %s
+        ''', (role, player_id))
         conn.commit()
         cursor.close()
         conn.close()

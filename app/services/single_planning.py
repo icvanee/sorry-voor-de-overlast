@@ -315,12 +315,15 @@ class SinglePlanning:
             
             conn.commit()
             
-            # === STAP 5: INITIALIZE PLAYER MATCH COUNTS ===
+            # === STAP 5: INITIALIZE PLAYER MATCH COUNTS & RECENT PLAY TRACKING ===
             print("\n📈 STEP 5: INITIALIZING PLAYER COUNTERS...")
             
             player_match_counts = {p['id']: 0 for p in active_players}
             player_home_counts = {p['id']: 0 for p in active_players}
             player_away_counts = {p['id']: 0 for p in active_players}
+            
+            # Track recent matches for variatie (last 3 matches played by each player)
+            recent_matches_by_player = {p['id']: [] for p in active_players}
             
             # Count pinned matches
             for match_id, player_ids in pinned_assignments.items():
@@ -391,11 +394,16 @@ class SinglePlanning:
                             date_conflict = conflicts > 0
                         
                         if is_available and not date_conflict:
+                            # Calculate recent play penalty (more recent = higher penalty)
+                            recent_matches = recent_matches_by_player[player_id]
+                            recent_penalty = len(recent_matches)  # 0-3 penalty based on recent matches
+                            
                             candidates.append({
                                 'player': player,
                                 'match_count': player_match_counts[player_id],
                                 'home_count': player_home_counts[player_id],
                                 'away_count': player_away_counts[player_id],
+                                'recent_penalty': recent_penalty,
                                 'available': True
                             })
                         else:
@@ -403,18 +411,63 @@ class SinglePlanning:
                     
                     print(f"      ✅ Available candidates: {len(candidates)}")
                     
-                    # === RULE 4: Sort by fairness (least matches first) ===
-                    candidates.sort(key=lambda c: (
-                        c['match_count'],  # Primary: fewest total matches
-                        abs(c['home_count'] - c['away_count']) if is_home else -abs(c['home_count'] - c['away_count']),  # Secondary: balance home/away
-                        c['player']['name']  # Tertiary: alphabetical for consistency
-                    ))
+                    # === RULE 4: Sort by fairness with VARIATIE! ===
+                    import random
                     
-                    # Select the best candidates
-                    selected_count = min(needed_players, len(candidates))
-                    selected_candidates = candidates[:selected_count]
+                    if len(candidates) > needed_players:
+                        # Group candidates by combined score (match_count + recent_penalty for better fairness)
+                        candidates_by_score = {}
+                        for c in candidates:
+                            # Combined score: total matches + recent play penalty (0-3)
+                            score = c['match_count'] + (c['recent_penalty'] * 0.5)  # Weight recent play
+                            score_key = round(score, 1)
+                            
+                            if score_key not in candidates_by_score:
+                                candidates_by_score[score_key] = []
+                            candidates_by_score[score_key].append(c)
+                        
+                        # Select with variatie: prioritize lower scores, add randomness
+                        selected_candidates = []
+                        remaining_needed = needed_players
+                        
+                        # Sort scores (lowest first for fairness)
+                        sorted_scores = sorted(candidates_by_score.keys())
+                        
+                        print(f"         📊 Candidate distribution by score: {[(s, len(candidates_by_score[s])) for s in sorted_scores]}")
+                        
+                        for score in sorted_scores:
+                            group = candidates_by_score[score]
+                            if remaining_needed <= 0:
+                                break
+                            
+                            # Add variatie: shuffle within same score group
+                            random.shuffle(group)
+                            
+                            # For lowest score: prefer more selections
+                            # For higher scores: reduce selection to maintain fairness
+                            if score == sorted_scores[0]:  # Best (lowest) score
+                                take = min(remaining_needed, len(group))
+                            else:
+                                # Gradual reduction for higher scores
+                                reduction_factor = 0.7  # Take 70% from higher score groups
+                                max_take = max(1, int(remaining_needed * reduction_factor)) if remaining_needed > 1 else remaining_needed
+                                take = min(max_take, len(group), remaining_needed)
+                            
+                            # Secondary sort: balance home/away, then random for variatie
+                            group.sort(key=lambda c: (
+                                abs(c['home_count'] - c['away_count']) if is_home else -abs(c['home_count'] - c['away_count']),
+                                random.random()  # Extra randomness for variatie!
+                            ))
+                            
+                            selected_candidates.extend(group[:take])
+                            remaining_needed -= take
+                            
+                            print(f"         🎲 From {len(group)} players with score {score}: selected {take}")
+                    else:
+                        # Not enough candidates - take all
+                        selected_candidates = candidates
                     
-                    print(f"      ⭐ Selected {selected_count} players:")
+                    print(f"      ⭐ Selected {len(selected_candidates)} players:")
                     
                     # Add assignments to database
                     for candidate in selected_candidates:
@@ -433,11 +486,16 @@ class SinglePlanning:
                         else:
                             player_away_counts[player_id] += 1
                         
+                        # Update recent matches tracking (keep last 3 matches)
+                        recent_matches_by_player[player_id].append(match_id)
+                        if len(recent_matches_by_player[player_id]) > 3:
+                            recent_matches_by_player[player_id].pop(0)  # Remove oldest
+                        
                         total_assignments += 1
-                        print(f"         ✅ {player['name']} (total: {player_match_counts[player_id]})")
+                        print(f"         ✅ {player['name']} (total: {player_match_counts[player_id]}, recent: {len(recent_matches_by_player[player_id])})")
                     
                     # Check for rule violations
-                    total_players = len(existing_pinned) + selected_count
+                    total_players = len(existing_pinned) + len(selected_candidates)
                     if total_players != 4:
                         rule_violations.append({
                             'match_id': match_id,

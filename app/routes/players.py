@@ -7,14 +7,13 @@ players = Blueprint('players', __name__)
 @players.route('/')
 def list_players():
     """List all players."""
-    from app.services.planning import PlanningVersion
+    # Single planning system - no need for planning versions
     
     all_players = Player.get_all()
     partner_pairs = Player.get_partner_pairs()
     
-    # Get the active planning version info
-    active_planning = PlanningVersion.get_active()
-    active_planning_name = active_planning['name'] if active_planning else "Geen actieve planning"
+    # Single planning system info
+    active_planning_name = "Single Planning System"
     
     # Get availability and match stats for each player
     players_with_stats = []

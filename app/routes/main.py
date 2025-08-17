@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, flash, redirect, url_for
 from app.models.player import Player
 from app.models.match import Match
-from app.services.scraper import TeamBeheerScraper, import_static_matches
+from app.services.import_service import ImportService
 
 main = Blueprint('main', __name__)
 
@@ -19,26 +19,74 @@ def index():
 def import_matches():
     """Import matches from teambeheer.nl"""
     try:
-        # Try web scraping first
-        scraper = TeamBeheerScraper()
-        imported_count = scraper.import_matches_to_db()
+        service = ImportService()
+        result = service.import_matches(use_static_fallback=True)
         
-        # If no matches imported via scraping, use static data
-        if imported_count == 0:
-            imported_count = import_static_matches()
-            
-        if imported_count > 0:
-            flash(f'Successfully imported {imported_count} matches!', 'success')
+        if result['success']:
+            if result['imported'] > 0:
+                flash(f"Successfully imported {result['imported']} matches! (Skipped {result['skipped']} existing)", 'success')
+            else:
+                flash('No new matches found to import.', 'info')
         else:
-            flash('No new matches found to import.', 'info')
+            error_msg = result['messages'][-1] if result['messages'] else 'Unknown error occurred'
+            flash(f'Error importing matches: {error_msg}', 'error')
             
     except Exception as e:
-        # Fallback to static data
-        imported_count = import_static_matches()
-        if imported_count > 0:
-            flash(f'Imported {imported_count} matches from static data (scraping failed: {str(e)}).', 'warning')
+        flash(f'Error importing matches: {str(e)}', 'error')
+    
+    return redirect(url_for('main.index'))
+
+@main.route('/import_players')
+def import_players():
+    """Import players from teambeheer.nl"""
+    try:
+        service = ImportService()
+        result = service.import_players()
+        
+        if result['success']:
+            if result['imported'] > 0:
+                flash(f"Successfully imported {result['imported']} players! (Skipped {result['skipped']} existing)", 'success')
+            else:
+                flash('No new players found to import.', 'info')
         else:
-            flash(f'Error importing matches: {e}', 'error')
+            error_msg = result['messages'][-1] if result['messages'] else 'Unknown error occurred'
+            flash(f'Error importing players: {error_msg}', 'error')
+            
+    except Exception as e:
+        flash(f'Error importing players: {str(e)}', 'error')
+    
+    return redirect(url_for('main.index'))
+
+@main.route('/clear_all_matches', methods=['POST'])
+def clear_all_matches():
+    """Clear all matches from the database (development only)"""
+    try:
+        # Delete all match planning first (foreign key constraint)
+        from app.models.database import get_db_connection
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Delete match planning entries
+        cursor.execute('DELETE FROM match_planning')
+        deleted_planning = cursor.rowcount
+        
+        # Delete player availability entries
+        cursor.execute('DELETE FROM player_availability')
+        deleted_availability = cursor.rowcount
+        
+        # Delete matches
+        cursor.execute('DELETE FROM matches')
+        deleted_matches = cursor.rowcount
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        flash(f'Successfully cleared all data: {deleted_matches} matches, {deleted_planning} planning entries, {deleted_availability} availability entries', 'success')
+        
+    except Exception as e:
+        flash(f'Error clearing matches: {str(e)}', 'error')
     
     return redirect(url_for('main.index'))
 

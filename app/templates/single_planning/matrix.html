@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">
-        <i class="fas fa-table"></i> Planning Matrix: {{ version.name }}
+        <i class="fas fa-table"></i> Planning Matrix
     </h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
@@ -24,25 +24,6 @@
             <button class="btn btn-sm btn-secondary" onclick="window.print()">
                 <i class="fas fa-print"></i> Afdrukken
             </button>
-        </div>
-    </div>
-</div>
-
-<!-- Planning Info -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-8">
-                <h5 class="card-title">{{ version.name }}</h5>
-                <p class="card-text">{{ version.description or 'Geen beschrijving beschikbaar' }}</p>
-            </div>
-            <div class="col-md-4 text-end">
-                <span class="badge bg-primary fs-6">
-                    <i class="fas fa-star"></i> Single Planning System
-                </span>
-                <br>
-                <small class="text-muted">Status: {{ version.created_at }}</small>
-            </div>
         </div>
     </div>
 </div>
@@ -113,7 +94,7 @@
                     <tr class="match-row 
                         {% if match_player_count > 4 %}table-warning{% elif match_player_count < 4 %}table-danger{% endif %}" 
                         data-match-id="{{ match.id }}" data-player-count="{{ match_player_count }}">
-                        <td class="sticky-column match-info">
+                        <td class="sticky-column match-info clickable" data-href="{{ url_for('single_planning.match_detail', match_id=match.id) }}" title="Open wedstrijdplanning">
                             <div class="match-details">
                                 <strong>
                                     {{ "%02d"|format(loop.index) }}. {{ match.match_date.strftime('%d/%m') if match.match_date else 'TBD' }}
@@ -383,6 +364,10 @@
     padding: 8px 12px;
 }
 
+.match-info.clickable {
+    cursor: pointer;
+}
+
 .match-details {
     line-height: 1.3;
 }
@@ -520,6 +505,11 @@ document.addEventListener('DOMContentLoaded', function() {
         compactView.addEventListener('change', function() {
             document.body.classList.toggle('compact', this.checked);
         });
+
+        // Apply initial compact state on load
+        if (compactView.checked) {
+            document.body.classList.add('compact');
+        }
     }
 
     if (showHomeAway) {
@@ -533,7 +523,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+
+        // Ensure initial state reflects the checkbox on load (default checked)
+        if (!showHomeAway.checked) {
+            document.querySelectorAll('.player-cell').forEach(cell => cell.classList.add('no-color-coding'));
+        }
     }
+
+    // Initialize row highlighting on first load so rows start red/oranje when needed
+    try {
+        document.querySelectorAll('tr.match-row').forEach(row => {
+            const matchId = row.getAttribute('data-match-id');
+            if (matchId) {
+                updateMatchRowHighlighting(matchId);
+            }
+        });
+    } catch (e) {
+        console.warn('Row highlight init failed:', e);
+    }
+
+    // Make match info cells clickable to open planning detail
+    document.querySelectorAll('td.match-info.clickable').forEach(cell => {
+        const href = cell.getAttribute('data-href');
+        if (href) {
+            cell.addEventListener('click', () => {
+                window.location.href = href;
+            });
+        }
+    });
 });
 
 // Cell editing functionality for Single Planning System with 3-state cycle

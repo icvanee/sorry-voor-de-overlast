@@ -99,13 +99,4 @@ def match_availability(match_id):
                          match=match, 
                          availability_data=availability_data)
 
-@matches.route('/<int:match_id>')
-def match_detail(match_id):
-    """Show match details."""
-    match = Match.get_by_id(match_id)
-    if not match:
-        flash('Match not found!', 'error')
-        return redirect(url_for('matches.list_matches'))
-    
-    # TODO: Get planning information for this match
-    return render_template('matches/detail.html', match=match)
+# Removed old match detail route. Details live at single_planning.match_detail

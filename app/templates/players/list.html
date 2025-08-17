@@ -5,8 +5,11 @@
     <h1 class="h2">Spelers Overzicht</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
-            <a href="{{ url_for('players.add_player') }}" class="btn btn-sm btn-primary">
+            <a href="{{ url_for('players.add_player') }}" class="btn btn-sm btn-outline-primary">
                 <i class="fas fa-user-plus"></i> Nieuwe Speler
+            </a>
+            <a href="{{ url_for('main.import_players') }}" class="btn btn-sm btn-outline-info">
+                <i class="fas fa-download"></i> Importeer Spelers
             </a>
         </div>
     </div>
@@ -175,31 +178,39 @@
     </div>
 </div>
 
-<!-- Statistics -->
+<!-- Quick Actions -->
 <div class="row mt-4">
-    <div class="col-md-4">
-        <div class="card text-center">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Snelle Acties</h5>
+            </div>
             <div class="card-body">
-                <h4 class="card-title text-primary">{{ players|length }}</h4>
-                <p class="card-text">Totaal Spelers</p>
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('players.add_player') }}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-user-plus"></i> Speler Toevoegen
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('main.import_players') }}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-download"></i> Importeer Spelers
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('matches.list_matches') }}" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-calendar"></i> Naar Wedstrijden
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('single_planning.dashboard') }}" class="btn btn-outline-success w-100">
+                            <i class="fas fa-calendar-check"></i> Teamplanning
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card text-center">
-            <div class="card-body">
-                <h4 class="card-title text-success">{{ partner_pairs|length }}</h4>
-                <p class="card-text">Partner Koppels</p>
-            </div>
-        </div>
     </div>
-    <div class="col-md-4">
-        <div class="card text-center">
-            <div class="card-body">
-                <h4 class="card-title text-info">{{ (players|length - (partner_pairs|length * 2)) }}</h4>
-                <p class="card-text">Alleenstaande Spelers</p>
-            </div>
-        </div>
-    </div>
-</div>
+
 {% endblock %}

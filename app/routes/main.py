@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, flash, redirect, url_for
 from app.models.player import Player
 from app.models.match import Match
 from app.services.import_service import ImportService
+from app.services.scraper import TeamBeheerScraper
+from app.services.single_planning import SinglePlanning
 
 main = Blueprint('main', __name__)
 
@@ -10,10 +12,21 @@ def index():
     """Homepage with overview."""
     players = Player.get_all()
     upcoming_matches = Match.get_upcoming()[:5]  # Next 5 matches
+    # Fetch planned players for each upcoming match
+    planning_by_match = {}
+    try:
+        for m in upcoming_matches:
+            match_id = m.id if hasattr(m, 'id') else m.get('id')
+            if match_id is not None:
+                planning_by_match[match_id] = SinglePlanning.get_match_planning(match_id)
+    except Exception:
+        # Fail-safe: if planning fetch fails, leave it empty to not break homepage
+        planning_by_match = {}
     
     return render_template('index.html', 
                          players=players, 
-                         upcoming_matches=upcoming_matches)
+                         upcoming_matches=upcoming_matches,
+                         planning_by_match=planning_by_match)
 
 @main.route('/import_matches')
 def import_matches():
@@ -110,20 +123,4 @@ def debug_scraper():
         import traceback
         return f"<pre>Error: {e}\n\nTraceback:\n{traceback.format_exc()}</pre>"
 
-@main.route('/dashboard')
-def dashboard():
-    """Dashboard with team statistics."""
-    players = Player.get_all()
-    matches = Match.get_all()
-    home_matches = Match.get_home_matches()
-    away_matches = Match.get_away_matches()
-    
-    stats = {
-        'total_players': len(players),
-        'total_matches': len(matches),
-        'home_matches': len(home_matches),
-        'away_matches': len(away_matches),
-        'partner_pairs': Player.get_partner_pairs()
-    }
-    
-    return render_template('dashboard.html', stats=stats)
+# Dashboard removed: no longer in use

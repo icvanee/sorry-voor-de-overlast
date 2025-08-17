@@ -15,7 +15,7 @@
 <!-- Quick Stats -->
 <div class="row mb-4">
     <div class="col-md-6 col-lg-3 mb-3">
-        <div class="card card-stat">
+        <div class="card card-stat position-relative">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -27,11 +27,12 @@
                     </div>
                 </div>
             </div>
+            <a href="{{ url_for('players.list_players') }}" class="stretched-link" aria-label="Ga naar spelers"></a>
         </div>
     </div>
     
     <div class="col-md-6 col-lg-3 mb-3">
-        <div class="card card-stat">
+        <div class="card card-stat position-relative">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -43,11 +44,12 @@
                     </div>
                 </div>
             </div>
+            <a href="{{ url_for('matches.list_matches') }}" class="stretched-link" aria-label="Ga naar wedstrijden"></a>
         </div>
     </div>
     
     <div class="col-md-6 col-lg-3 mb-3">
-        <div class="card card-stat">
+        <div class="card card-stat position-relative">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -59,11 +61,12 @@
                     </div>
                 </div>
             </div>
+            <a href="{{ url_for('matches.list_matches') }}" class="stretched-link" aria-label="Ga naar wedstrijden"></a>
         </div>
     </div>
     
     <div class="col-md-6 col-lg-3 mb-3">
-        <div class="card card-stat">
+        <div class="card card-stat position-relative">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -75,6 +78,7 @@
                     </div>
                 </div>
             </div>
+            <a href="{{ url_for('single_planning.dashboard') }}" class="stretched-link" aria-label="Ga naar teamplanning"></a>
         </div>
     </div>
 </div>
@@ -129,7 +133,8 @@
                 {% if upcoming_matches %}
                     <div class="list-group list-group-flush">
                         {% for match in upcoming_matches %}
-                            <div class="list-group-item">
+                            {% set planning = planning_by_match.get(match.id, []) %}
+                            <div class="list-group-item position-relative">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1">
                                         {% if match.is_friendly %}
@@ -143,16 +148,29 @@
                                     </h6>
                                     <small>{{ match.match_date }}</small>
                                 </div>
-                                <p class="mb-1">
+                                <p class="mb-2">
                                     {% if match.is_home %}
                                         <i class="fas fa-home text-success"></i> Thuiswedstrijd
                                     {% else %}
                                         <i class="fas fa-road text-warning"></i> Uitwedstrijd
                                     {% endif %}
                                 </p>
+                                {% if planning %}
+                                    <div class="d-flex flex-wrap gap-1 mb-1">
+                                        {% for p in planning %}
+                                            <span class="badge {% if p.is_pinned %}bg-warning text-dark{% else %}bg-light text-dark{% endif %}">
+                                                {{ p.player_name }}
+                                                {% if p.is_pinned %}<i class="fas fa-thumbtack"></i>{% endif %}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <small class="text-muted d-block mb-1">Nog geen selectie</small>
+                                {% endif %}
                                 {% if match.location %}
                                     <small class="text-muted">{{ match.location }}</small>
                                 {% endif %}
+                                <a href="{{ url_for('single_planning.match_detail', match_id=match.id) }}" class="stretched-link" aria-label="Open wedstrijdplanning"></a>
                             </div>
                         {% endfor %}
                     </div>
@@ -189,7 +207,7 @@
                         </a>
                     </div>
                     <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary w-100">
+                        <a href="{{ url_for('matches.list_matches') }}" class="btn btn-outline-secondary w-100">
                             <i class="fas fa-chart-bar"></i> Statistieken
                         </a>
                     </div>

@@ -152,8 +152,8 @@
     </div>
 </div>
 
-<!-- Quick Actions -->
-<div class="row">
+<!-- Quick Actions (same as Home) -->
+<div class="row mt-4">
     <div class="col-12">
         <div class="card shadow">
             <div class="card-header py-3">
@@ -161,43 +161,25 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('players.add_player') }}" class="btn btn-primary btn-block w-100">
-                            <i class="fas fa-user-plus mb-1"></i>
-                            <br>Speler Toevoegen
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('players.add_player') }}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-user-plus"></i> Speler Toevoegen
                         </a>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('matches.add_match') }}" class="btn btn-success btn-block w-100">
-                            <i class="fas fa-calendar-plus mb-1"></i>
-                            <br>Wedstrijd Toevoegen
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('matches.add_match') }}" class="btn btn-outline-success w-100">
+                            <i class="fas fa-calendar-plus"></i> Wedstrijd Toevoegen
                         </a>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('single_planning.dashboard') }}" class="btn btn-info btn-block w-100">
-                            <i class="fas fa-plus-circle mb-1"></i>
-                            <br>Nieuwe Planning
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('single_planning.dashboard') }}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-plus-circle"></i> Teamplanning
                         </a>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('main.import_matches') }}" class="btn btn-warning btn-block w-100">
-                            <i class="fas fa-download mb-1"></i>
-                            <br>Import Wedstrijden
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-chart-bar"></i> Statistieken
                         </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('main.import_players') }}" class="btn btn-info btn-block w-100">
-                            <i class="fas fa-users mb-1"></i>
-                            <br>Import Spelers
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <form method="POST" action="{{ url_for('main.clear_all_matches') }}" onsubmit="return confirm('⚠️ WAARSCHUWING: Dit verwijdert ALLE wedstrijden, planning en beschikbaarheid! Weet je het zeker?');">
-                            <button type="submit" class="btn btn-danger btn-block w-100">
-                                <i class="fas fa-trash mb-1"></i>
-                                <br>Verwijder Alle Wedstrijden
-                            </button>
-                        </form>
                     </div>
                 </div>
             </div>

@@ -207,13 +207,52 @@
                         </a>
                     </div>
                     <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('matches.list_matches') }}" class="btn btn-outline-secondary w-100">
-                            <i class="fas fa-chart-bar"></i> Statistieken
-                        </a>
+                                                <button type="button" class="btn btn-outline-dark w-100" data-bs-toggle="modal" data-bs-target="#helpModal">
+                                                        <i class="fas fa-question-circle"></i> Help
+                                                </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="helpModalLabel"><i class="fas fa-question-circle"></i> Help: Hoe gebruik je de teamplanning</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <h6><i class="fas fa-sign-in-alt me-1"></i> Inloggen</h6>
+                    <p class="mb-2">Je wordt automatisch gevraagd in te loggen als dat nodig is. Log in met je e-mailadres zoals in de spelerslijst. (In deze test is geen wachtwoord nodig.)</p>
+                </div>
+                <div class="mb-3">
+                    <h6><i class="fas fa-calendar-check me-1"></i> Beschikbaarheid invullen</h6>
+                    <p class="mb-2">Vul per wedstrijd je beschikbaarheid in. Op mobiel werkt dit het best in landscape (liggend) vanwege de tabel.</p>
+                </div>
+                <div class="mb-3">
+                    <h6><i class="fas fa-users me-1"></i> Rollen</h6>
+                    <p class="mb-2">Captain en Reserve Captain kunnen wedstrijden plannen, spelers vastpinnen en als gespeeld markeren. Spelers kunnen hun eigen beschikbaarheid invullen en de planning bekijken.</p>
+                </div>
+                <div class="mb-3">
+                    <h6><i class="fas fa-eye me-1"></i> Wat kun je zien?</h6>
+                    <p class="mb-2">Je ziet wie wanneer speelt (planning) en wat al gespeeld is. Dit is een proef om te testen of dit handig werkt.</p>
+                </div>
+                        <hr>
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Deze app vraagt automatisch om in te loggen wanneer dat nodig is. Je logt in met je e-mailadres (testfase: geen wachtwoord).</small>
+                        </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Sluiten</button>
+            </div>
+        </div>
+    </div>
+ </div>
+
+{% block scripts %}{{ super() }}{% endblock %}
 {% endblock %}

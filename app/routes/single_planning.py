@@ -92,7 +92,7 @@ def match_detail(match_id):
         return redirect(url_for('single_planning.dashboard'))
 
 @single_planning.route('/api/match/<int:match_id>/players', methods=['POST'])
-def update_match_players():
+def update_match_players(match_id):
     """API endpoint to update players for a match."""
     try:
         data = request.get_json()
@@ -117,7 +117,7 @@ def update_match_players():
         }), 500
 
 @single_planning.route('/api/player/<int:player_id>/pin', methods=['POST'])
-def toggle_player_pin():
+def toggle_player_pin(player_id):
     """API endpoint to pin/unpin a player for a match."""
     try:
         data = request.get_json()
@@ -143,7 +143,7 @@ def toggle_player_pin():
         }), 500
 
 @single_planning.route('/api/match/<int:match_id>/pin', methods=['POST'])
-def toggle_match_pin():
+def toggle_match_pin(match_id):
     """API endpoint to pin/unpin all players for a match."""
     try:
         data = request.get_json()
@@ -168,7 +168,7 @@ def toggle_match_pin():
         }), 500
 
 @single_planning.route('/api/player/<int:player_id>/actually_played', methods=['POST'])
-def toggle_actually_played():
+def toggle_actually_played(player_id):
     """API endpoint to mark a player as actually played."""
     try:
         data = request.get_json()
@@ -194,7 +194,7 @@ def toggle_actually_played():
         }), 500
 
 @single_planning.route('/api/match/<int:match_id>/played', methods=['POST'])
-def toggle_match_played():
+def toggle_match_played(match_id):
     """API endpoint to mark a match as played."""
     try:
         data = request.get_json()

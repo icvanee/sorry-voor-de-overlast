@@ -91,6 +91,112 @@ class Player:
         conn.commit()
         cursor.close()
         conn.close()
+
+    @staticmethod
+    def set_partner_bidirectional(player_id, partner_id):
+        """Set or clear a partner relationship for a player and mirror it on the partner.
+
+        Rules:
+        - When linking A -> B, we also set B -> A.
+        - If A had an old partner C, we clear C -> A.
+        - If B had an old partner D (and D != A), we clear B -> D and D -> B if it was reciprocal.
+        - When unlinking (partner_id is None), we clear A -> None and clear B -> None if B was pointing to A.
+        """
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            # Prevent self-link
+            if partner_id == player_id:
+                partner_id = None
+
+            # Lock rows for consistency
+            cursor.execute('SELECT partner_id FROM players WHERE id = %s FOR UPDATE', (player_id,))
+            row = cursor.fetchone()
+            current_partner = row['partner_id'] if row else None
+
+            # Unlink from current partner if changing
+            if current_partner and current_partner != partner_id:
+                # Clear old partner's link if it points back
+                cursor.execute('SELECT partner_id FROM players WHERE id = %s FOR UPDATE', (current_partner,))
+                old_partner_row = cursor.fetchone()
+                if old_partner_row and old_partner_row['partner_id'] == player_id:
+                    cursor.execute('UPDATE players SET partner_id = NULL WHERE id = %s', (current_partner,))
+
+            if partner_id:
+                # Lock new partner row
+                cursor.execute('SELECT partner_id FROM players WHERE id = %s FOR UPDATE', (partner_id,))
+                partner_row = cursor.fetchone()
+                partner_current_partner = partner_row['partner_id'] if partner_row else None
+
+                # If partner currently linked to someone else, clear that reciprocal link
+                if partner_current_partner and partner_current_partner != player_id:
+                    # Clear the other person's link if it points to this partner
+                    cursor.execute('SELECT partner_id FROM players WHERE id = %s FOR UPDATE', (partner_current_partner,))
+                    other_row = cursor.fetchone()
+                    if other_row and other_row['partner_id'] == partner_id:
+                        cursor.execute('UPDATE players SET partner_id = NULL WHERE id = %s', (partner_current_partner,))
+
+                # Set both sides
+                cursor.execute('UPDATE players SET partner_id = %s WHERE id = %s', (partner_id, player_id))
+                cursor.execute('UPDATE players SET partner_id = %s WHERE id = %s', (player_id, partner_id))
+            else:
+                # Unlink A and clear B if reciprocal
+                cursor.execute('UPDATE players SET partner_id = NULL WHERE id = %s', (player_id,))
+                if current_partner:
+                    cursor.execute('SELECT partner_id FROM players WHERE id = %s FOR UPDATE', (current_partner,))
+                    cp_row = cursor.fetchone()
+                    if cp_row and cp_row['partner_id'] == player_id:
+                        cursor.execute('UPDATE players SET partner_id = NULL WHERE id = %s', (current_partner,))
+
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def set_partner_preference_bidirectional(player_id, prefer_together=True):
+        """Set prefer_partner_together for player and mirror to their partner if present."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('UPDATE players SET prefer_partner_together = %s WHERE id = %s', (prefer_together, player_id))
+            # Mirror to partner if any
+            cursor.execute('SELECT partner_id FROM players WHERE id = %s', (player_id,))
+            row = cursor.fetchone()
+            if row and row['partner_id']:
+                cursor.execute('UPDATE players SET prefer_partner_together = %s WHERE id = %s', (prefer_together, row['partner_id']))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_available_for_partnership(exclude_player_id=None):
+        """Get active players who currently have no partner (optionally excluding one)."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if exclude_player_id:
+            cursor.execute('''
+                SELECT id, name FROM players 
+                WHERE is_active = true AND partner_id IS NULL AND id <> %s
+                ORDER BY name
+            ''', (exclude_player_id,))
+        else:
+            cursor.execute('''
+                SELECT id, name FROM players 
+                WHERE is_active = true AND partner_id IS NULL
+                ORDER BY name
+            ''')
+        players = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return players
     
     @staticmethod
     def set_partner_preference(player_id, prefer_together=True):

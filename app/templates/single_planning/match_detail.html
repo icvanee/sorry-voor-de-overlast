@@ -206,7 +206,7 @@ function removePlayer(playerId) {
 }
 
 function updateMatchPlayers(playerIds) {
-    fetch('/planning/single/api/match/{{ match.id }}/players', {
+    fetch('/planning/api/match/{{ match.id }}/players', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -222,16 +222,16 @@ function updateMatchPlayers(playerIds) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('Fout: ' + data.message);
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+    alert('Fout: ' + error.message);
     });
 }
 
 function togglePlayerPin(playerId, pin) {
-    fetch('/planning/single/api/player/' + playerId + '/pin', {
+    fetch('/planning/api/player/' + playerId + '/pin', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -247,16 +247,16 @@ function togglePlayerPin(playerId, pin) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('Fout: ' + data.message);
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+    alert('Fout: ' + error.message);
     });
 }
 
 function toggleActuallyPlayed(playerId, played) {
-    fetch('/planning/single/api/player/' + playerId + '/actually_played', {
+    fetch('/planning/api/player/' + playerId + '/actually_played', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -272,18 +272,18 @@ function toggleActuallyPlayed(playerId, played) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('Fout: ' + data.message);
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+    alert('Fout: ' + error.message);
     });
 }
 
 function toggleMatchPin() {
     const hasPinnedPlayers = {{ 'true' if planning|selectattr('is_pinned')|list else 'false' }};
     
-    fetch('/planning/single/api/match/{{ match.id }}/pin', {
+    fetch('/planning/api/match/{{ match.id }}/pin', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -298,18 +298,18 @@ function toggleMatchPin() {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('Fout: ' + data.message);
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+    alert('Fout: ' + error.message);
     });
 }
 
 function toggleMatchPlayed() {
     const isPlayed = {{ 'true' if match.is_played else 'false' }};
     
-    fetch('/planning/single/api/match/{{ match.id }}/played', {
+    fetch('/planning/api/match/{{ match.id }}/played', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

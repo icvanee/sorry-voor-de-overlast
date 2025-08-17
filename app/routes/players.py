@@ -47,7 +47,11 @@ def add_player():
         
         try:
             partner_id = int(partner_id) if partner_id else None
-            Player.create(name, role, partner_id)
+            # Create player (use named args to avoid param order issues)
+            new_player_id = Player.create(name=name, role=role, partner_id=partner_id)
+            # If partner selected, set bidirectional link
+            if partner_id:
+                Player.set_partner_bidirectional(new_player_id, partner_id)
             flash(f'Player {name} added successfully!', 'success')
             return redirect(url_for('players.list_players'))
         except Exception as e:
@@ -80,18 +84,28 @@ def edit_player(player_id):
         
         try:
             partner_id = int(partner_id) if partner_id else None
-            Player.update(player_id, name, role, partner_id)
-            
-            # Update partner preference
-            Player.set_partner_preference(player_id, prefer_partner_together)
+            # Update basic fields first (without changing partner here)
+            Player.update(player_id, name=name, role=role)
+            # Update partner bidirectionally
+            Player.set_partner_bidirectional(player_id, partner_id)
+            # Update partner preference mirrored to partner
+            Player.set_partner_preference_bidirectional(player_id, prefer_partner_together)
             
             flash(f'Player {name} updated successfully!', 'success')
             return redirect(url_for('players.list_players'))
         except Exception as e:
             flash(f'Error updating player: {e}', 'error')
     
-    # Get available players for partner selection (excluding current player)
-    available_players = [p for p in Player.get_all() if p['id'] != player_id]
+    # Get available players for partner selection: allow current partner and otherwise only unpaired players
+    available_players = []
+    all_unpaired = Player.get_available_for_partnership(exclude_player_id=player_id)
+    # Include current partner if any, so it's selectable
+    if player.get('partner_id'):
+        partner = Player.get_by_id(player['partner_id'])
+        if partner and partner['is_active']:
+            available_players.append(partner)
+    # Add all other unpaired players
+    available_players.extend(all_unpaired)
     return render_template('players/edit.html', player=player, available_players=available_players)
 
 @players.route('/deactivate/<int:player_id>')

@@ -46,8 +46,7 @@
                         </select>
                     </div>
                     
-                    {% if player.partner_id %}
-                    <div class="mb-3">
+                    <div class="mb-3" id="prefer_partner_wrapper" {% if not player.partner_id %}style="display: none;"{% endif %}>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" 
                                    id="prefer_partner_together" name="prefer_partner_together" value="true"
@@ -60,7 +59,6 @@
                             </div>
                         </div>
                     </div>
-                    {% endif %}
                     
                     <div class="d-flex justify-content-between">
                         <button type="submit" class="btn btn-primary">
@@ -123,12 +121,9 @@
 <script>
 document.getElementById('partner_id').addEventListener('change', function() {
     const partnerSelected = this.value !== '';
-    const preferenceDiv = document.querySelector('#prefer_partner_together').closest('.mb-3');
-    if (partnerSelected) {
-        preferenceDiv.style.display = 'block';
-    } else {
-        preferenceDiv.style.display = 'none';
-    }
+    const wrapper = document.getElementById('prefer_partner_wrapper');
+    if (!wrapper) return;
+    wrapper.style.display = partnerSelected ? 'block' : 'none';
 });
 </script>
 {% endblock %}

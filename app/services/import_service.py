@@ -8,6 +8,7 @@ from app.models.player import Player
 from app.services.scraper import TeamBeheerScraper
 from flask import current_app
 import traceback
+from datetime import datetime, date
 
 class ImportService:
     """Service voor het importeren van wedstrijden en spelers"""
@@ -52,9 +53,12 @@ class ImportService:
             # Importeer gevonden matches
             result = self._import_scraped_matches(matches, result)
             
-            if result['imported'] == 0 and use_static_fallback:
-                result['messages'].append("No new matches imported via scraping, trying static fallback...")
-                return self._import_static_matches(result)
+            # Let op: gebruik GEEN statische fallback als scraping is gelukt maar
+            # er geen nieuwe wedstrijden zijn gevonden (alles bestond al).
+            # Dit voorkómt dat oude seizoensdata (bijv. 2024) alsnog wordt toegevoegd
+            # bij een tweede import.
+            if result['imported'] == 0:
+                result['messages'].append("No new matches imported via scraping (all existed). Skipping static fallback.")
             
             result['success'] = True
             result['messages'].append(f"Import completed: {result['imported']} imported, {result['skipped']} skipped, {result['errors']} errors")
@@ -131,9 +135,23 @@ class ImportService:
         """Importeer statische wedstrijden als fallback"""
         try:
             from app.services.scraper import STATIC_MATCHES
+            today = date.today()
             
             for match_data in STATIC_MATCHES:
                 try:
+                    # Sla statische wedstrijden in het verleden over (voorkomt import van oude seizoenen)
+                    try:
+                        static_dt = datetime.strptime(match_data['date'], '%Y-%m-%d').date()
+                        if static_dt < today:
+                            result['messages'].append(
+                                f"Skipping static past match: {match_data['home_team']} vs {match_data['away_team']} on {match_data['date']}"
+                            )
+                            result['skipped'] += 1
+                            continue
+                    except Exception:
+                        # Als parsen faalt, ga door zonder harde fout
+                        pass
+
                     # Check of match al bestaat
                     existing_matches = Match.get_all()
                     exists = False

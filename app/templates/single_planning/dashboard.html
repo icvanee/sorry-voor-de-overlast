@@ -1,21 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Single Planning Dashboard{% endblock %}
+{% block title %}Teamplanning Dashboard{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-calendar-alt"></i> Team Planning Dashboard</h2>
+    <h2><i class="fas fa-calendar-alt"></i> Teamplanning Dashboard</h2>
         <div class="btn-group" role="group">
             <a href="{{ url_for('single_planning.matrix') }}" class="btn btn-info">
                 <i class="fas fa-table"></i> Matrix Weergave
             </a>
-            <button type="button" class="btn btn-primary" onclick="generateInitialPlanning()">
-                <i class="fas fa-magic"></i> Generate Initial Planning
-            </button>
-            <button type="button" class="btn btn-warning" onclick="regeneratePlanning()">
-                <i class="fas fa-sync-alt"></i> Regenerate Planning
-            </button>
         </div>
     </div>
 
@@ -24,7 +18,7 @@
         <div class="col-md-3">
             <div class="card bg-primary text-white">
                 <div class="card-body">
-                    <h6 class="card-title">Total Matches</h6>
+                    <h6 class="card-title">Totaal aantal wedstrijden</h6>
                     <h3>{{ matches|length }}</h3>
                 </div>
             </div>
@@ -32,7 +26,7 @@
         <div class="col-md-3">
             <div class="card bg-success text-white">
                 <div class="card-body">
-                    <h6 class="card-title">Played Matches</h6>
+                    <h6 class="card-title">Gespeelde wedstrijden</h6>
                     <h3>{{ matches.values() | selectattr('match.is_played') | list | length }}</h3>
                 </div>
             </div>
@@ -40,7 +34,7 @@
         <div class="col-md-3">
             <div class="card bg-warning text-white">
                 <div class="card-body">
-                    <h6 class="card-title">Upcoming Matches</h6>
+                    <h6 class="card-title">Aankomende wedstrijden</h6>
                     <h3>{{ matches.values() | rejectattr('match.is_played') | list | length }}</h3>
                 </div>
             </div>
@@ -48,7 +42,7 @@
         <div class="col-md-3">
             <div class="card bg-info text-white">
                 <div class="card-body">
-                    <h6 class="card-title">Active Players</h6>
+                    <h6 class="card-title">Actieve spelers</h6>
                     <h3>{{ all_players | selectattr('is_active') | list | length }}</h3>
                 </div>
             </div>
@@ -58,19 +52,19 @@
     <!-- Player Statistics -->
     <div class="card mb-4">
         <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-users"></i> Player Statistics</h5>
+            <h5 class="mb-0"><i class="fas fa-users"></i> Spelerstatistieken</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-sm">
                     <thead>
                         <tr>
-                            <th>Player</th>
-                            <th>Planned</th>
-                            <th>Home</th>
-                            <th>Away</th>
-                            <th>Played</th>
-                            <th>Completed</th>
+                            <th>Speler</th>
+                            <th>Gepland</th>
+                            <th>Thuis</th>
+                            <th>Uit</th>
+                            <th>Gespeeld</th>
+                            <th>Afgerond</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -96,18 +90,18 @@
     <!-- Matches List -->
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-list"></i> Match Planning</h5>
+            <h5 class="mb-0"><i class="fas fa-list"></i> Wedstrijdplanning</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Match</th>
-                            <th>Players</th>
+                            <th>Datum</th>
+                            <th>Wedstrijd</th>
+                            <th>Spelers</th>
                             <th>Status</th>
-                            <th>Actions</th>
+                            <th>Acties</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -122,9 +116,9 @@
                                     <div>
                                         <strong>{{ match.home_team }} vs {{ match.away_team }}</strong>
                                         {% if match.is_home %}
-                                            <span class="badge bg-primary ms-2">HOME</span>
+                                            <span class="badge bg-primary ms-2">THUIS</span>
                                         {% else %}
-                                            <span class="badge bg-secondary ms-2">AWAY</span>
+                                            <span class="badge bg-secondary ms-2">UIT</span>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -139,7 +133,7 @@
                                             </span>
                                         {% endfor %}
                                         {% if players|length < 4 %}
-                                            <span class="badge bg-danger">Need {{ 4 - players|length }} more</span>
+                                            <span class="badge bg-danger">Nog {{ 4 - players|length }} nodig</span>
                                         {% elif players|length > 4 %}
                                             <span class="badge bg-warning">{{ players|length - 4 }} extra</span>
                                         {% endif %}
@@ -147,9 +141,9 @@
                                 </td>
                                 <td>
                                     {% if match.is_played %}
-                                        <span class="badge bg-success">PLAYED</span>
+                                        <span class="badge bg-success">GESPEELD</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">SCHEDULED</span>
+                                        <span class="badge bg-secondary">GEPLAND</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -158,16 +152,18 @@
                                            class="btn btn-outline-primary">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button type="button" class="btn btn-outline-warning" 
-                                                onclick="toggleMatchPin({{ match.id }}, {{ 'false' if players|selectattr('is_pinned')|list else 'true' }})">
+                    <button type="button" class="btn btn-outline-warning btn-toggle-pin"
+                        data-match-id="{{ match.id }}"
+                        data-has-pinned="{{ 'true' if players|selectattr('is_pinned')|list else 'false' }}">
                                             {% if players|selectattr('is_pinned')|list %}
                                                 <i class="fas fa-unlock"></i>
                                             {% else %}
                                                 <i class="fas fa-lock"></i>
                                             {% endif %}
                                         </button>
-                                        <button type="button" class="btn btn-outline-success" 
-                                                onclick="toggleMatchPlayed({{ match.id }}, {{ 'false' if match.is_played else 'true' }})">
+                    <button type="button" class="btn btn-outline-success btn-toggle-played"
+                        data-match-id="{{ match.id }}"
+                        data-is-played="{{ 'true' if match.is_played else 'false' }}">
                                             {% if match.is_played %}
                                                 <i class="fas fa-undo"></i>
                                             {% else %}
@@ -189,77 +185,48 @@
 <div class="container mt-3">
     <div class="card">
         <div class="card-body">
-            <h6>Legend:</h6>
+            <h6>Legenda:</h6>
             <div class="d-flex flex-wrap gap-3">
-                <span><span class="badge bg-warning">Player Name <i class="fas fa-thumbtack"></i></span> Pinned Player</span>
-                <span><span class="badge bg-success">Player Name <i class="fas fa-check"></i></span> Actually Played</span>
-                <span><span class="badge bg-light text-dark">Player Name</span> Planned Player</span>
-                <span><span class="badge bg-primary">HOME</span> Home Match</span>
-                <span><span class="badge bg-secondary">AWAY</span> Away Match</span>
+                <span><span class="badge bg-warning">Spelernaam <i class="fas fa-thumbtack"></i></span> Gepinde speler</span>
+                <span><span class="badge bg-success">Spelernaam <i class="fas fa-check"></i></span> Daadwerkelijk gespeeld</span>
+                <span><span class="badge bg-light text-dark">Spelernaam</span> Geplande speler</span>
+                <span><span class="badge bg-primary">THUIS</span> Thuiswedstrijd</span>
+                <span><span class="badge bg-secondary">UIT</span> Uitwedstrijd</span>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-function generateInitialPlanning() {
-    if (confirm('This will generate initial planning for all matches. Continue?')) {
-        fetch('/planning/single/api/generate_initial', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            alert('Error: ' + error.message);
+document.addEventListener('DOMContentLoaded', () => {
+    // Toggle pin buttons
+    document.querySelectorAll('.btn-toggle-pin').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const matchId = parseInt(btn.getAttribute('data-match-id'), 10);
+            const hasPinned = btn.getAttribute('data-has-pinned') === 'true';
+            // We want to invert current state: if has any pinned -> unpin all, else pin all
+            toggleMatchPin(matchId, !hasPinned);
         });
-    }
-}
+    });
 
-function regeneratePlanning() {
-    if (confirm('This will regenerate planning while keeping pinned players. Continue?')) {
-        fetch('/planning/single/api/regenerate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                exclude_pinned: true
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            alert('Error: ' + error.message);
+    // Toggle played buttons
+    document.querySelectorAll('.btn-toggle-played').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const matchId = parseInt(btn.getAttribute('data-match-id'), 10);
+            const isPlayed = btn.getAttribute('data-is-played') === 'true';
+            toggleMatchPlayed(matchId, !isPlayed);
         });
-    }
-}
-
+    });
+});
 function toggleMatchPin(matchId, pin) {
-    fetch('/planning/single/api/match/' + matchId + '/pin', {
+    fetch('/planning/api/match/' + matchId + '/pin', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             match_id: matchId,
-            pinned: pin === 'true'
+            pinned: !!pin
         })
     })
     .then(response => response.json())
@@ -267,23 +234,23 @@ function toggleMatchPin(matchId, pin) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('Fout: ' + data.message);
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+    alert('Fout: ' + error.message);
     });
 }
 
 function toggleMatchPlayed(matchId, played) {
-    fetch('/planning/single/api/match/' + matchId + '/played', {
+    fetch('/planning/api/match/' + matchId + '/played', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             match_id: matchId,
-            played: played === 'true'
+            played: !!played
         })
     })
     .then(response => response.json())
@@ -291,11 +258,11 @@ function toggleMatchPlayed(matchId, played) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('Fout: ' + data.message);
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+    alert('Fout: ' + error.message);
     });
 }
 </script>

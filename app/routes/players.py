@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
+from app.utils.auth import login_required, roles_required, get_current_user
 from app.models.player import Player
 from app.models.match import Match
 
 players = Blueprint('players', __name__)
 
 @players.route('/')
+@login_required
 def list_players():
     """List all players."""
     # Single planning system - no need for planning versions
@@ -34,6 +36,7 @@ def list_players():
                          active_planning_name=active_planning_name)
 
 @players.route('/add', methods=['GET', 'POST'])
+@roles_required('captain', 'reserve captain')
 def add_player():
     """Add a new player."""
     if request.method == 'POST':
@@ -65,6 +68,7 @@ def add_player():
                          existing_players=existing_players)
 
 @players.route('/edit/<int:player_id>', methods=['GET', 'POST'])
+@roles_required('captain', 'reserve captain')
 def edit_player(player_id):
     """Edit a player."""
     player = Player.get_by_id(player_id)
@@ -109,6 +113,7 @@ def edit_player(player_id):
     return render_template('players/edit.html', player=player, available_players=available_players)
 
 @players.route('/deactivate/<int:player_id>')
+@roles_required('captain', 'reserve captain')
 def deactivate_player(player_id):
     """Deactivate a player."""
     try:
@@ -120,6 +125,7 @@ def deactivate_player(player_id):
     return redirect(url_for('players.list_players'))
 
 @players.route('/<int:player_id>/availability', methods=['GET', 'POST'])
+@login_required
 def player_availability(player_id):
     """Show and manage player availability."""
     player = Player.get_by_id(player_id)
@@ -127,7 +133,13 @@ def player_availability(player_id):
         flash('Player not found!', 'error')
         return redirect(url_for('players.list_players'))
     
+    # Only owner or captain can modify
+    current = get_current_user()
+    can_edit = current and ((current.get('id') == player_id) or (current.get('role','').lower() in ('captain','reserve captain')))
+
     if request.method == 'POST':
+        if not can_edit:
+            return jsonify({'success': False, 'error': 'Geen permissie om beschikbaarheid te wijzigen'}), 403
         # Handle AJAX request for updating availability
         if request.is_json:
             try:
@@ -170,7 +182,8 @@ def player_availability(player_id):
     return render_template('players/availability.html', 
                          player=player, 
                          matches=matches,
-                         availability_data=availability_data)
+                         availability_data=availability_data,
+                         can_edit=can_edit)
 
 @players.route('/<int:player_id>/stats')
 def player_stats(player_id):

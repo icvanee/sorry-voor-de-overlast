@@ -3,6 +3,7 @@ Single Planning Routes - Issue #22
 Routes for the simplified single planning system.
 """
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from app.utils.auth import login_required, roles_required
 from app.services.single_planning import SinglePlanning
 from app.models.database import get_db_connection
 from app.models.match import Match
@@ -11,6 +12,7 @@ from app.models.player import Player
 single_planning = Blueprint('single_planning', __name__, url_prefix='/planning')
 
 @single_planning.route('/')
+@login_required
 def dashboard():
     """Main dashboard for single planning system."""
     try:
@@ -62,6 +64,8 @@ def dashboard():
                              all_players=[])
 
 @single_planning.route('/match/<int:match_id>')
+@single_planning.route('/match/<int:match_id>')
+@login_required
 def match_detail(match_id):
     """Detail view for a specific match."""
     try:
@@ -92,6 +96,8 @@ def match_detail(match_id):
         return redirect(url_for('single_planning.dashboard'))
 
 @single_planning.route('/api/match/<int:match_id>/players', methods=['POST'])
+@single_planning.route('/api/match/<int:match_id>/players', methods=['POST'])
+@roles_required('captain', 'reserve captain')
 def update_match_players(match_id):
     """API endpoint to update players for a match."""
     try:
@@ -117,7 +123,9 @@ def update_match_players(match_id):
         }), 500
 
 @single_planning.route('/api/player/<int:player_id>/pin', methods=['POST'])
-def toggle_player_pin(player_id):
+@single_planning.route('/api/player/<int:player_id>/pin', methods=['POST'])
+@roles_required('captain', 'reserve captain')
+def pin_player(player_id):
     """API endpoint to pin/unpin a player for a match."""
     try:
         data = request.get_json()
@@ -143,7 +151,9 @@ def toggle_player_pin(player_id):
         }), 500
 
 @single_planning.route('/api/match/<int:match_id>/pin', methods=['POST'])
-def toggle_match_pin(match_id):
+@single_planning.route('/api/match/<int:match_id>/pin', methods=['POST'])
+@roles_required('captain', 'reserve captain')
+def pin_match(match_id):
     """API endpoint to pin/unpin all players for a match."""
     try:
         data = request.get_json()
@@ -168,7 +178,9 @@ def toggle_match_pin(match_id):
         }), 500
 
 @single_planning.route('/api/player/<int:player_id>/actually_played', methods=['POST'])
-def toggle_actually_played(player_id):
+@single_planning.route('/api/player/<int:player_id>/actually_played', methods=['POST'])
+@roles_required('captain', 'reserve captain')
+def set_actually_played(player_id):
     """API endpoint to mark a player as actually played."""
     try:
         data = request.get_json()
@@ -194,7 +206,9 @@ def toggle_actually_played(player_id):
         }), 500
 
 @single_planning.route('/api/match/<int:match_id>/played', methods=['POST'])
-def toggle_match_played(match_id):
+@single_planning.route('/api/match/<int:match_id>/played', methods=['POST'])
+@roles_required('captain', 'reserve captain')
+def set_match_played(match_id):
     """API endpoint to mark a match as played."""
     try:
         data = request.get_json()
@@ -219,6 +233,7 @@ def toggle_match_played(match_id):
         }), 500
 
 @single_planning.route('/api/regenerate', methods=['POST'])
+@roles_required('captain', 'reserve captain')
 def api_regenerate():
     """API: Regenerate planning while preserving pinned players."""
     try:
@@ -255,11 +270,13 @@ def api_regenerate():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @single_planning.route('/matrix')
+@login_required
 def matrix():
     """Alias for matrix_view to make it the main matrix route."""
     return matrix_view()
 
 @single_planning.route('/matrix_view')  
+@login_required
 def matrix_view():
     """Show matrix view of single planning."""
     try:
@@ -413,6 +430,7 @@ def matrix_view():
         return redirect(url_for('single_planning.dashboard'))
 
 @single_planning.route('/matrix/edit', methods=['POST'])
+@roles_required('captain', 'reserve captain')
 def edit_matrix_cell():
     """Cycle through player assignment states: niet -> wel -> pinned -> niet."""
     try:

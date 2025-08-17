@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-sign-in-alt"></i> Inloggen</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label for="email" class="form-label">E-mailadres</label>
+            <input type="email" class="form-control" id="email" name="email" placeholder="jij@example.com" required>
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Wachtwoord</label>
+            <input type="password" class="form-control" id="password" name="password" placeholder="(MVP: wachtwoord nog niet verplicht)">
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Inloggen</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 text-center mt-3">
+    <small class="text-muted">Nog geen account? Laat je e-mail opnemen bij de spelerslijst.</small>
+  </div>
+  </div>
+{% endblock %}

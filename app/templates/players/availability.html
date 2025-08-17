@@ -8,9 +8,11 @@
             <a href="{{ url_for('players.list_players') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i> Terug naar Spelers
             </a>
+            {% if has_role('captain','reserve captain') %}
             <a href="{{ url_for('players.edit_player', player_id=player.id) }}" class="btn btn-sm btn-primary">
                 <i class="fas fa-edit"></i> Speler Bewerken
             </a>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -36,6 +38,7 @@
                 </p>
             </div>
             <div class="col-md-4 text-end">
+                {% if can_edit %}
                 <div class="btn-group">
                     <button id="selectAll" class="btn btn-sm btn-success">
                         <i class="fas fa-check-circle"></i> Alles Beschikbaar
@@ -44,6 +47,7 @@
                         <i class="fas fa-times-circle"></i> Alles Niet Beschikbaar
                     </button>
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -109,11 +113,12 @@
                                     </td>
                                     <td class="text-center">
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input availability-toggle" 
+                          <input class="form-check-input availability-toggle" 
                                                    type="checkbox" 
                                                    id="availability_{{ match.id }}"
                                                    data-match-id="{{ match.id }}"
-                                                   {% if availability and availability.is_available %}checked{% endif %}>
+                              {% if availability and availability.is_available %}checked{% endif %}
+                              {% if not can_edit %}disabled{% endif %}>
                                             <label class="form-check-label" for="availability_{{ match.id }}">
                                                 <span class="available-text {% if availability and availability.is_available %}text-success{% else %}text-danger{% endif %}">
                                                     {% if availability and availability.is_available %}
@@ -126,11 +131,12 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <input type="text" 
+                         <input type="text" 
                                                class="form-control form-control-sm notes-input" 
                                                data-match-id="{{ match.id }}"
                                                placeholder="Optionele notitie..."
-                                               value="{{ availability.notes if availability else '' }}">
+                             value="{{ availability.notes if availability else '' }}"
+                             {% if not can_edit %}disabled{% endif %}>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -138,11 +144,13 @@
                     </table>
                 </div>
                 
+                {% if can_edit %}
                 <div class="mt-3 text-center">
                     <button type="button" id="saveAll" class="btn btn-primary btn-lg">
                         <i class="fas fa-save"></i> Alle Wijzigingen Opslaan
                     </button>
                 </div>
+                {% endif %}
             </form>
         {% else %}
             <div class="text-center py-4">
@@ -199,7 +207,7 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const playerId = {{ player.id }};
+    const playerId = {{ player.id | tojson }};
     
     // Update statistics
     function updateStats() {
@@ -242,7 +250,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Select all available
-    document.getElementById('selectAll').addEventListener('click', function() {
+    const btnAll = document.getElementById('selectAll');
+    if (btnAll) btnAll.addEventListener('click', function() {
         document.querySelectorAll('.availability-toggle').forEach(toggle => {
             toggle.checked = true;
             toggle.dispatchEvent(new Event('change'));
@@ -250,7 +259,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Select none available
-    document.getElementById('selectNone').addEventListener('click', function() {
+    const btnNone = document.getElementById('selectNone');
+    if (btnNone) btnNone.addEventListener('click', function() {
         document.querySelectorAll('.availability-toggle').forEach(toggle => {
             toggle.checked = false;
             toggle.dispatchEvent(new Event('change'));
@@ -258,7 +268,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Save all changes
-    document.getElementById('saveAll').addEventListener('click', function() {
+    const btnSave = document.getElementById('saveAll');
+    if (btnSave) btnSave.addEventListener('click', function() {
         const button = this;
         button.disabled = true;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opslaan...';

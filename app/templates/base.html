@@ -21,8 +21,17 @@
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" height="50" class="me-2">
             </a>
-            <div class="navbar-nav ms-auto">
-                <span class="navbar-text">Seizoen 2025-2026 | 4A</span>
+            <div class="navbar-nav ms-auto align-items-center">
+                <span class="navbar-text me-3">Seizoen 2025-2026 | 4A</span>
+                {% if current_user %}
+                <span class="navbar-text me-2">
+                    <i class="fas fa-user"></i> {{ current_user.name }}
+                    <small class="text-light ms-1">({{ (current_user.role or 'speler')|capitalize }})</small>
+                </span>
+                <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.logout') }}">Logout</a>
+                {% else %}
+                <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.login') }}">Login</a>
+                {% endif %}
             </div>
         </div>
     </nav>
@@ -59,6 +68,7 @@
                     <hr>
                     
                     <ul class="nav flex-column mb-2">
+                        {% if has_role('captain', 'reserve captain') %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('main.import_matches') }}">
                                 <i class="fas fa-download"></i> Import Wedstrijden
@@ -69,11 +79,13 @@
                                 <i class="fas fa-users"></i> Import Spelers
                             </a>
                         </li>
+                        {% endif %}
                     </ul>
                     
                     <hr>
                     
                     <ul class="nav flex-column mb-2">
+                        {% if has_role('captain', 'reserve captain') %}
                         <li class="nav-item">
                             <form method="POST" action="{{ url_for('main.clear_all_matches') }}" onsubmit="return confirm('⚠️ Dit verwijdert ALLE wedstrijden en planning! Zeker weten?');" style="margin: 0;">
                                 <button type="submit" class="nav-link btn btn-link text-danger p-2" style="border: none; background: none; width: 100%; text-align: left;">
@@ -81,6 +93,7 @@
                                 </button>
                             </form>
                         </li>
+                        {% endif %}
                     </ul>
                 </div>
             </nav>

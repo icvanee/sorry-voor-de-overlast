@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
+from app.utils.auth import login_required, roles_required
 from app.models.match import Match
 from app.models.player import Player
 
 matches = Blueprint('matches', __name__)
 
 @matches.route('/')
+@login_required
 def list_matches():
     """List all matches."""
     all_matches = Match.get_all()
@@ -12,6 +14,7 @@ def list_matches():
     return render_template('matches/list.html', matches=all_matches, upcoming_matches=upcoming_matches)
 
 @matches.route('/add', methods=['GET', 'POST'])
+@roles_required('captain', 'reserve captain')
 def add_match():
     """Add a new match."""
     if request.method == 'POST':
@@ -37,6 +40,7 @@ def add_match():
     return render_template('matches/add.html')
 
 @matches.route('/edit/<int:match_id>', methods=['GET', 'POST'])
+@roles_required('captain', 'reserve captain')
 def edit_match(match_id):
     """Edit a match."""
     match = Match.get_by_id(match_id)
@@ -67,6 +71,7 @@ def edit_match(match_id):
     return render_template('matches/edit.html', match=match)
 
 @matches.route('/delete/<int:match_id>')
+@roles_required('captain', 'reserve captain')
 def delete_match(match_id):
     """Delete a match."""
     try:
@@ -78,6 +83,7 @@ def delete_match(match_id):
     return redirect(url_for('matches.list_matches'))
 
 @matches.route('/<int:match_id>/availability')
+@login_required
 def match_availability(match_id):
     """Show player availability for a specific match."""
     match = Match.get_by_id(match_id)

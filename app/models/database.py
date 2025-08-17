@@ -27,6 +27,7 @@ def init_database():
                 name VARCHAR(100) NOT NULL,
                 email VARCHAR(255),
                 phone VARCHAR(20),
+                password_hash TEXT,
                 role VARCHAR(50) DEFAULT 'speler',
                 partner_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
                 prefer_partner_together BOOLEAN DEFAULT true,
@@ -35,6 +36,18 @@ def init_database():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        # Ensure password_hash exists for older installations
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='players' AND column_name='password_hash'
+                ) THEN
+                    ALTER TABLE players ADD COLUMN password_hash TEXT;
+                END IF;
+            END$$;
+        """)
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS matches (

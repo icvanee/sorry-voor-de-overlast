@@ -771,8 +771,16 @@ function regeneratePlanning() {
                         btn.disabled = false;
                     }
                 } else {
+                    // Try to read JSON error with message from server (e.g. 401/403)
+                    let msg = `Serverfout: ${xhr.status} ${xhr.statusText}`;
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        if (data && (data.error || data.message)) {
+                            msg = data.error || data.message;
+                        }
+                    } catch (_) {}
                     console.error('❌ HTTP Error:', xhr.status, xhr.statusText);
-                    showToast(`Serverfout: ${xhr.status} ${xhr.statusText}`, 'error');
+                    showToast(msg, 'error');
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                 }

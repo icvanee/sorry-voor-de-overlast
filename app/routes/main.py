@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, flash, redirect, url_for
+from app.utils.auth import roles_required, login_required
 from app.models.player import Player
 from app.models.match import Match
 from app.services.import_service import ImportService
@@ -8,6 +9,7 @@ from app.services.single_planning import SinglePlanning
 main = Blueprint('main', __name__)
 
 @main.route('/')
+@login_required
 def index():
     """Homepage with overview."""
     players = Player.get_all()
@@ -29,6 +31,7 @@ def index():
                          planning_by_match=planning_by_match)
 
 @main.route('/import_matches')
+@roles_required('captain', 'reserve captain')
 def import_matches():
     """Import matches from teambeheer.nl"""
     try:
@@ -50,6 +53,7 @@ def import_matches():
     return redirect(url_for('main.index'))
 
 @main.route('/import_players')
+@roles_required('captain', 'reserve captain')
 def import_players():
     """Import players from teambeheer.nl"""
     try:
@@ -71,6 +75,7 @@ def import_players():
     return redirect(url_for('main.index'))
 
 @main.route('/clear_all_matches', methods=['POST'])
+@roles_required('captain', 'reserve captain')
 def clear_all_matches():
     """Clear all matches from the database (development only)"""
     try:

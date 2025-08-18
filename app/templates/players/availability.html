@@ -57,21 +57,24 @@
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0">Beschikbaarheid per Wedstrijd</h5>
-        <small class="text-muted">Klik op de schakelaars om beschikbaarheid in te stellen</small>
+        <small class="text-muted">
+            Klik op de schakelaars om beschikbaarheid in te stellen
+            en druk onderaan op <strong><i class="fas fa-save"></i> Alle Wijzigingen Opslaan</strong> om te bewaren.
+        </small>
     </div>
     <div class="card-body">
         {% if matches %}
-            <form id="availabilityForm">
+            <form id="availabilityForm" data-player-id="{{ player.id }}">
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead class="table-dark">
                             <tr>
                                 <th>Datum</th>
                                 <th>Wedstrijd</th>
-                                <th>Type</th>
-                                <th>Locatie</th>
                                 <th class="text-center">Beschikbaar</th>
                                 <th>Notities</th>
+                                <th>Type</th>
+                                <th>Locatie</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -88,27 +91,6 @@
                                         <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
                                         {% if match.location %}
                                             <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.location }}</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if match.is_cup_match %}
-                                            <span class="badge bg-warning text-dark">Beker</span>
-                                        {% else %}
-                                            <span class="badge bg-primary">Competitie</span>
-                                        {% endif %}
-                                        {% if match.round_name %}
-                                            <br><small class="text-muted">{{ match.round_name }}</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if match.is_home %}
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-home"></i> Thuis
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-warning text-dark">
-                                                <i class="fas fa-road"></i> Uit
-                                            </span>
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
@@ -137,6 +119,27 @@
                                                placeholder="Optionele notitie..."
                              value="{{ availability.notes if availability else '' }}"
                              {% if not can_edit %}disabled{% endif %}>
+                                    </td>
+                                    <td>
+                                        {% if match.is_cup_match %}
+                                            <span class="badge bg-warning text-dark">Beker</span>
+                                        {% else %}
+                                            <span class="badge bg-primary">Competitie</span>
+                                        {% endif %}
+                                        {% if match.round_name %}
+                                            <br><small class="text-muted">{{ match.round_name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if match.is_home %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-home"></i> Thuis
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-road"></i> Uit
+                                            </span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -207,7 +210,8 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const playerId = {{ player.id | tojson }};
+    const formEl = document.getElementById('availabilityForm');
+    const playerId = formEl ? formEl.dataset.playerId : null;
     
     // Update statistics
     function updateStats() {

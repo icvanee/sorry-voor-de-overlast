@@ -7,6 +7,7 @@ from app.models.player import Player
 from app.models.match import Match
 from datetime import datetime
 import random
+from collections import defaultdict, deque
 
 class SinglePlanning:
     """
@@ -18,7 +19,7 @@ class SinglePlanning:
     - Track match completion and actual players
     - Support 5th player when needed
     """
-    
+
     @staticmethod
     def get_planning():
         """Get the current single planning for all matches."""
@@ -44,7 +45,7 @@ class SinglePlanning:
         cursor.close()
         conn.close()
         return planning
-    
+
     @staticmethod
     def get_match_planning(match_id):
         """Get planning for a specific match."""
@@ -64,7 +65,7 @@ class SinglePlanning:
         cursor.close()
         conn.close()
         return planning
-    
+
     @staticmethod
     def set_match_planning(match_id, player_ids, preserve_pinned=True):
         """
@@ -208,7 +209,7 @@ class SinglePlanning:
             'matches_played': 0,
             'completed_matches': 0
         }
-    
+
     @staticmethod
     def regenerate_planning(exclude_pinned=True, plan_mode='all', cutoff_date=None):
         """
@@ -415,12 +416,27 @@ class SinglePlanning:
 
             # === STAP 6: GENERATE COMPLETE PLANNING ===
             print("\n🎯 STEP 6: GENERATING COMPLETE PLANNING...")
+
+            # Index matches to balance spacing over time and avoid long streaks
+            match_index_by_id = {m['id']: i for i, m in enumerate(target_matches)}
+            last_play_idx = {p['id']: None for p in active_players}  # last index where player was assigned (pinned or selected)
+            pair_cooccur = defaultdict(int)  # unordered pair (min_id, max_id) -> times played together so far in this regen
+            # Keep short memory of recent full team quartets to increase diversity
+            quartet_memory_size = 3  # consider last N lineups as recent
+            recent_quartets = deque(maxlen=quartet_memory_size)
+            # Weights and bonuses (tunable)
+            recent_weight = 0.5
+            spacing_weight = 1.2
+            synergy_weight = 0.8
+            synergy_weight_for_partners = 0.3  # a bit lighter to keep partners together more often
+            partner_pair_bonus = 1.5           # stronger bonus for selecting a true partner pair
+            partner_with_selected_bonus = 0.8  # slightly stronger bonus when partner already present
             
             regenerated_count = 0
             total_assignments = 0
             rule_violations = []
             
-            for match in target_matches:
+            for idx, match in enumerate(target_matches):
                 match_id = match['id']
                 match_date = match.get('match_date')
                 is_home = match.get('is_home', False)
@@ -435,6 +451,16 @@ class SinglePlanning:
                 needed_players = 4 - len(existing_pinned)
                 
                 print(f"      📌 Pinned: {len(existing_pinned)} | Need: {needed_players} more")
+
+                # Progressive fairness cap up to this point (prevents front-loading the same players)
+                # Allowed max for now = ceil(4 * matches_processed_so_far / num_players)
+                matches_so_far_inclusive = idx + 1
+                allowed_now_cap = (4 * matches_so_far_inclusive + num_players_active - 1) // num_players_active
+                print(f"      ⚖️ Progressive cap until now: {allowed_now_cap} per player")
+
+                # Ensure pinned players count toward spacing tracking for subsequent matches
+                for pid in existing_pinned:
+                    last_play_idx[pid] = idx
                 
                 if needed_players > 0:
                     # === RULE 1: Filter available players ===
@@ -470,6 +496,15 @@ class SinglePlanning:
                             # Calculate recent play penalty (more recent = higher penalty)
                             recent_matches = recent_matches_by_player[player_id]
                             recent_penalty = len(recent_matches)  # 0-3 penalty based on recent matches
+
+                            # Spacing penalty to avoid consecutive or near-consecutive appearances
+                            lp = last_play_idx.get(player_id)
+                            if lp is None:
+                                spacing_penalty = 0
+                            else:
+                                gap = idx - lp
+                                # penalize if played very recently (gap 1->2, 2->1)
+                                spacing_penalty = 2 if gap <= 1 else (1 if gap == 2 else 0)
                             
                             candidates.append({
                                 'player': player,
@@ -477,6 +512,7 @@ class SinglePlanning:
                                 'home_count': player_home_counts[player_id],
                                 'away_count': player_away_counts[player_id],
                                 'recent_penalty': recent_penalty,
+                                'spacing_penalty': spacing_penalty,
                                 'available': True
                             })
                         else:
@@ -507,8 +543,12 @@ class SinglePlanning:
                         if partner and pinned_player.get('prefer_partner_together', True) and partner.get('prefer_partner_together', True):
                             # Partner must be an eligible candidate for this match
                             cand = candidates_by_id.get(partner_id)
-                            # FAIRNESS FIRST: don't exceed cap
-                            if cand and partner_id not in selected_ids and fairness_counts.get(partner_id, 0) < max_per_player_target:
+                            # FAIRNESS FIRST: don't exceed cap (both global cap and progressive cap) and avoid back-to-back if possible
+                            lp_partner = last_play_idx.get(partner_id)
+                            gap_ok = (lp_partner is None) or ((idx - lp_partner) >= 2)  # prefer at least one match between
+                            within_cap = fairness_counts.get(partner_id, 0) < max_per_player_target
+                            within_progress = fairness_counts.get(partner_id, 0) < allowed_now_cap
+                            if cand and partner_id not in selected_ids and within_cap and (within_progress or remaining_needed >= (4 - len(existing_pinned))) and gap_ok:
                                 selected_candidates.append(cand)
                                 selected_ids.add(partner_id)
                                 remaining_needed -= 1
@@ -540,6 +580,13 @@ class SinglePlanning:
                             # FAIRNESS FIRST: skip pairs that would break caps
                             if not (fairness_counts.get(cid, 0) < max_per_player_target and fairness_counts.get(partner_id, 0) < max_per_player_target):
                                 continue
+                            # Progressive cap and spacing: avoid pairing if any of them just played last match
+                            lp_a = last_play_idx.get(cid)
+                            lp_b = last_play_idx.get(partner_id)
+                            if (lp_a is not None and (idx - lp_a) <= 1) or (lp_b is not None and (idx - lp_b) <= 1):
+                                continue
+                            if not (fairness_counts.get(cid, 0) < allowed_now_cap and fairness_counts.get(partner_id, 0) < allowed_now_cap):
+                                continue
                             # Create an order-independent key to avoid duplicates
                             pair_key = tuple(sorted([cid, partner_id]))
                             if pair_key in seen_pairs:
@@ -548,8 +595,24 @@ class SinglePlanning:
                             # Compute a fairness-oriented combined score (lower is better)
                             combined_score = (
                                 cand['match_count'] + partner_cand['match_count'] +
-                                0.5 * (cand['recent_penalty'] + partner_cand['recent_penalty'])
+                                recent_weight * (cand['recent_penalty'] + partner_cand['recent_penalty']) +
+                                spacing_weight * (cand.get('spacing_penalty', 0) + partner_cand.get('spacing_penalty', 0))
                             )
+                            # Add synergy penalty: how often A-B have been together + with currently pinned players
+                            a_id = cid
+                            b_id = partner_id
+                            key_ab = (a_id, b_id) if a_id < b_id else (b_id, a_id)
+                            synergy = pair_cooccur[key_ab]
+                            for pid in existing_pinned:
+                                k1 = (a_id, pid) if a_id < pid else (pid, a_id)
+                                k2 = (b_id, pid) if b_id < pid else (pid, b_id)
+                                synergy += pair_cooccur[k1] + pair_cooccur[k2]
+                            # Prefer true partners slightly more often: lighter synergy penalty and apply bonus
+                            combined_score += (synergy_weight_for_partners if players_by_id.get(a_id, {}).get('partner_id') == b_id else synergy_weight) * synergy
+                            if players_by_id.get(a_id, {}).get('partner_id') == b_id and \
+                               players_by_id.get(a_id, {}).get('prefer_partner_together', True) and \
+                               players_by_id.get(b_id, {}).get('prefer_partner_together', True):
+                                combined_score -= partner_pair_bonus
                             pairs.append((combined_score, (cand, partner_cand)))
 
                         # Sort pairs by best combined score
@@ -570,18 +633,32 @@ class SinglePlanning:
                             print(f"         👥 Added partner pair: {cand_a['player']['name']} + {cand_b['player']['name']}")
 
                     # === RULE 4: Sort by fairness with VARIATIE! for remaining slots ===
-                    import random
-
                     remaining_candidates_all = [c for c in candidates if c['player']['id'] not in selected_ids]
-                    # Apply fairness cap filter first
-                    remaining_candidates = [c for c in remaining_candidates_all if fairness_counts.get(c['player']['id'], 0) < max_per_player_target]
+                    # Apply fairness caps: strong preference to progressive cap, then global cap
+                    under_progressive = [c for c in remaining_candidates_all if fairness_counts.get(c['player']['id'], 0) < allowed_now_cap]
+                    under_global = [c for c in remaining_candidates_all if fairness_counts.get(c['player']['id'], 0) < max_per_player_target]
+                    # Start with progressive set; if too small, use global; else fallback to all
+                    remaining_candidates = under_progressive if len(under_progressive) >= remaining_needed else (under_global if len(under_global) >= remaining_needed else remaining_candidates_all)
 
                     if len(remaining_candidates) > remaining_needed and remaining_needed > 0:
-                        # Group candidates by combined score (match_count + recent_penalty for better fairness)
+                        # Group candidates by combined score (match_count + recent_penalty + spacing + synergy)
                         candidates_by_score = {}
                         for c in remaining_candidates:
-                            # Combined score: total matches + recent play penalty (0-3)
-                            score = c['match_count'] + (c['recent_penalty'] * 0.5)  # Weight recent play
+                            # Combined score: total matches + recent + spacing + synergy; include partner bonus if partner already present
+                            pid_c = c['player']['id']
+                            synergy = 0
+                            partner_bonus = 0
+                            partner_id = players_by_id.get(pid_c, {}).get('partner_id')
+                            for pid in list(selected_ids) + list(existing_pinned):
+                                key = (pid_c, pid) if pid_c < pid else (pid, pid_c)
+                                synergy += pair_cooccur[key]
+                                if partner_id and pid == partner_id and \
+                                   players_by_id.get(pid_c, {}).get('prefer_partner_together', True) and \
+                                   players_by_id.get(partner_id, {}).get('prefer_partner_together', True):
+                                    partner_bonus += partner_with_selected_bonus
+                            # Lighter synergy penalty if the partner is present (true partners)
+                            effective_synergy_weight = synergy_weight_for_partners if partner_id and partner_id in (list(selected_ids) + list(existing_pinned)) else synergy_weight
+                            score = c['match_count'] + (c['recent_penalty'] * recent_weight) + (c.get('spacing_penalty', 0) * spacing_weight) + (effective_synergy_weight * synergy) - partner_bonus
                             score_key = round(score, 1)
                             
                             if score_key not in candidates_by_score:
@@ -589,8 +666,6 @@ class SinglePlanning:
                             candidates_by_score[score_key].append(c)
                         
                         # Select with variatie: prioritize lower scores, add randomness
-                        # Keep already selected in selected_candidates, fill remaining_needed
-                        # Sort scores (lowest first for fairness)
                         sorted_scores = sorted(candidates_by_score.keys())
                         
                         print(f"         📊 Candidate distribution by score: {[(s, len(candidates_by_score[s])) for s in sorted_scores]}")
@@ -604,7 +679,6 @@ class SinglePlanning:
                             random.shuffle(group)
                             
                             # For lowest score: prefer more selections
-                            # For higher scores: reduce selection to maintain fairness
                             if score == sorted_scores[0]:  # Best (lowest) score
                                 take = min(remaining_needed, len(group))
                             else:
@@ -630,16 +704,33 @@ class SinglePlanning:
                         # Not enough candidates or exact fit - take what's left up to remaining_needed
                         if remaining_needed > 0:
                             # Prefer under-cap, then if still needed, allow over-cap with best fairness
+                            # Sort remaining by score including synergy with pinned/selected
+                            def compute_score(c):
+                                pid_c = c['player']['id']
+                                synergy = 0
+                                partner_bonus = 0
+                                partner_id = players_by_id.get(pid_c, {}).get('partner_id')
+                                for pid in list(selected_ids) + list(existing_pinned):
+                                    key = (pid_c, pid) if pid_c < pid else (pid, pid_c)
+                                    synergy += pair_cooccur[key]
+                                    if partner_id and pid == partner_id and \
+                                       players_by_id.get(pid_c, {}).get('prefer_partner_together', True) and \
+                                       players_by_id.get(partner_id, {}).get('prefer_partner_together', True):
+                                        partner_bonus += partner_with_selected_bonus
+                                effective_synergy_weight = synergy_weight_for_partners if partner_id and partner_id in (list(selected_ids) + list(existing_pinned)) else synergy_weight
+                                return c['match_count'] + (c['recent_penalty'] * recent_weight) + (c.get('spacing_penalty', 0) * spacing_weight) + (effective_synergy_weight * synergy) - partner_bonus
+                            remaining_candidates.sort(key=compute_score)
                             take_from_under = min(remaining_needed, len(remaining_candidates))
-                            selected_candidates.extend(remaining_candidates[:take_from_under])
-                            selected_ids.update([x['player']['id'] for x in remaining_candidates[:take_from_under]])
-                            for x in remaining_candidates[:take_from_under]:
+                            chosen = remaining_candidates[:take_from_under]
+                            selected_candidates.extend(chosen)
+                            selected_ids.update([x['player']['id'] for x in chosen])
+                            for x in chosen:
                                 fairness_counts[x['player']['id']] = fairness_counts.get(x['player']['id'], 0) + 1
                             remaining_needed -= take_from_under
                             if remaining_needed > 0:
                                 # Allow picking from all remaining ignoring cap, choose by lowest match_count
                                 overflow_pool = [c for c in remaining_candidates_all if c['player']['id'] not in selected_ids]
-                                overflow_pool.sort(key=lambda c: (c['match_count'], c['recent_penalty']))
+                                overflow_pool.sort(key=compute_score)
                                 take_overflow = min(remaining_needed, len(overflow_pool))
                                 selected_candidates.extend(overflow_pool[:take_overflow])
                                 selected_ids.update([x['player']['id'] for x in overflow_pool[:take_overflow]])
@@ -653,13 +744,77 @@ class SinglePlanning:
                         # Take from any remaining eligible candidates (ignoring fairness/partner), best fairness-first
                         leftovers = [c for c in candidates if c['player']['id'] not in selected_ids]
                         if len(leftovers) >= missing:
-                            leftovers.sort(key=lambda c: (c['match_count'], c['recent_penalty']))
+                            def compute_score(c):
+                                pid_c = c['player']['id']
+                                synergy = 0
+                                partner_bonus = 0
+                                partner_id = players_by_id.get(pid_c, {}).get('partner_id')
+                                for pid in list(selected_ids) + list(existing_pinned):
+                                    key = (pid_c, pid) if pid_c < pid else (pid, pid_c)
+                                    synergy += pair_cooccur[key]
+                                    if partner_id and pid == partner_id and \
+                                       players_by_id.get(pid_c, {}).get('prefer_partner_together', True) and \
+                                       players_by_id.get(partner_id, {}).get('prefer_partner_together', True):
+                                        partner_bonus += partner_with_selected_bonus
+                                effective_synergy_weight = synergy_weight_for_partners if partner_id and partner_id in (list(selected_ids) + list(existing_pinned)) else synergy_weight
+                                return c['match_count'] + (c['recent_penalty'] * recent_weight) + (c.get('spacing_penalty', 0) * spacing_weight) + (effective_synergy_weight * synergy) - partner_bonus
+                            leftovers.sort(key=compute_score)
                             add = leftovers[:missing]
                             selected_candidates.extend(add)
                             selected_ids.update([x['player']['id'] for x in add])
                             for x in add:
                                 fairness_counts[x['player']['id']] = fairness_counts.get(x['player']['id'], 0) + 1
                             missing = 0
+
+                    # Quartet diversity memory: avoid repeating exact same quartet as in last few matches
+                    team_ids_preview = list(existing_pinned) + [c['player']['id'] for c in selected_candidates]
+                    if len(team_ids_preview) == 4:
+                        current_team_set = frozenset(team_ids_preview)
+                        if current_team_set in recent_quartets:
+                            print(f"         🔁 Quartet matches one of the last {quartet_memory_size} lineups; trying to diversify...")
+                            # Try a soft swap: replace one selected (non-pinned) with an alternative candidate
+                            leftovers = [c for c in candidates if c['player']['id'] not in selected_ids]
+
+                            # Scoring helper reused from fairness logic with synergy
+                            def _compute_score(c):
+                                pid_c = c['player']['id']
+                                synergy = 0
+                                for pid in list(selected_ids) + list(existing_pinned):
+                                    key = (pid_c, pid) if pid_c < pid else (pid, pid_c)
+                                    synergy += pair_cooccur[key]
+                                return c['match_count'] + (c['recent_penalty'] * 0.5) + (c.get('spacing_penalty', 0) * 1.2) + (0.8 * synergy)
+
+                            leftovers.sort(key=_compute_score)
+
+                            swapped = False
+                            # Iterate alternatives first to find a good new face
+                            for alt in leftovers:
+                                alt_id = alt['player']['id']
+                                # Respect caps when possible
+                                if not (fairness_counts.get(alt_id, 0) < max_per_player_target and fairness_counts.get(alt_id, 0) < allowed_now_cap):
+                                    continue
+                                # Try swapping out one of the currently selected players
+                                for i, rem in enumerate(selected_candidates):
+                                    rem_id = rem['player']['id']
+                                    # Propose new selected id set
+                                    new_selected_ids = (selected_ids - {rem_id}) | {alt_id}
+                                    new_team_set = frozenset(list(existing_pinned) + list(new_selected_ids))
+                                    if new_team_set not in recent_quartets:
+                                        # Apply swap
+                                        selected_candidates[i] = alt
+                                        selected_ids.remove(rem_id)
+                                        selected_ids.add(alt_id)
+                                        # Adjust fairness counters for cap accounting within scope
+                                        fairness_counts[rem_id] = max(0, fairness_counts.get(rem_id, 0) - 1)
+                                        fairness_counts[alt_id] = fairness_counts.get(alt_id, 0) + 1
+                                        current_team_set = new_team_set
+                                        print(f"         🔄 Diversity swap: replaced {rem['player']['name']} with {alt['player']['name']}")
+                                        swapped = True
+                                        break
+                                if swapped:
+                                    break
+                            if not swapped:
+                                print("         ℹ️ Kept lineup (no safe swap found within caps)")
 
                     print(f"      ⭐ Selected {len(selected_candidates)} players:")
                     
@@ -685,9 +840,24 @@ class SinglePlanning:
                         if len(recent_matches_by_player[player_id]) > 3:
                             recent_matches_by_player[player_id].pop(0)  # Remove oldest
                         
+                        # Update spacing tracker
+                        last_play_idx[player_id] = idx
+                        
                         total_assignments += 1
                         print(f"         ✅ {player['name']} (total: {player_match_counts[player_id]}, recent: {len(recent_matches_by_player[player_id])})")
                     
+                    # Update pair co-occurrence counts for full team (pinned + selected)
+                    team_ids = list(existing_pinned) + [c['player']['id'] for c in selected_candidates]
+                    for i in range(len(team_ids)):
+                        for j in range(i + 1, len(team_ids)):
+                            a, b = team_ids[i], team_ids[j]
+                            key = (a, b) if a < b else (b, a)
+                            pair_cooccur[key] += 1
+
+                    # Add this quartet to the recent memory for diversity tracking
+                    if len(team_ids) == 4:
+                        recent_quartets.append(frozenset(team_ids))
+
                     # Check for rule violations
                     total_players = len(existing_pinned) + len(selected_candidates)
                     if total_players != 4:

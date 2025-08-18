@@ -305,7 +305,7 @@ def matrix_view():
         print("📅 Getting matches...")
         # Get matches
         cursor.execute('''
-            SELECT id, match_date, home_team, away_team, is_home, round_name, is_played
+            SELECT id, match_date, home_team, away_team, is_home, round_name, is_played, is_cup_match
             FROM matches 
             ORDER BY match_date, id
         ''')

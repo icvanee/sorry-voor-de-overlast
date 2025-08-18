@@ -125,9 +125,15 @@
                                 </small>
                                 <br>
                                 <span class="match-type-badge">
+                                    {% if match.is_cup_match %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-trophy"></i> Beker
+                                    </span>
+                                    {% else %}
                                     <span class="badge bg-primary">
                                         <i class="fas fa-users"></i> Competitie
                                     </span>
+                                    {% endif %}
                                     {% if match.is_home %}
                                         <span class="badge bg-success">
                                             <i class="fas fa-home"></i> Thuis

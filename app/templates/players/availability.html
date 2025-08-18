@@ -65,86 +65,165 @@
     <div class="card-body">
         {% if matches %}
             <form id="availabilityForm" data-player-id="{{ player.id }}">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Datum</th>
-                                <th>Wedstrijd</th>
-                                <th class="text-center">Beschikbaar</th>
-                                <th>Notities</th>
-                                <th>Type</th>
-                                <th>Locatie</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for match in matches %}
-                                {% set availability = availability_data.get(match.id) %}
-                                <tr class="{% if match.is_home %}table-success{% else %}table-warning{% endif %}">
-                                    <td>
-                                        <strong>{{ match.match_date|date_nl }}</strong>
-                                        {% if match.match_time %}
-                                            <br><small class="text-muted">{{ match.match_time }}</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
-                                        {% if match.location %}
-                                            <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.location }}</small>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="form-check form-switch">
-                          <input class="form-check-input availability-toggle" 
-                                                   type="checkbox" 
-                                                   id="availability_{{ match.id }}"
-                                                   data-match-id="{{ match.id }}"
-                              {% if availability and availability.is_available %}checked{% endif %}
-                              {% if not can_edit %}disabled{% endif %}>
-                                            <label class="form-check-label" for="availability_{{ match.id }}">
-                                                <span class="available-text {% if availability and availability.is_available %}text-success{% else %}text-danger{% endif %}">
-                                                    {% if availability and availability.is_available %}
-                                                        <i class="fas fa-check"></i> Ja
-                                                    {% else %}
-                                                        <i class="fas fa-times"></i> Nee
-                                                    {% endif %}
-                                                </span>
-                                            </label>
-                                        </div>
-                                    </td>
-                                    <td>
-                         <input type="text" 
-                                               class="form-control form-control-sm notes-input" 
-                                               data-match-id="{{ match.id }}"
-                                               placeholder="Optionele notitie..."
-                             value="{{ availability.notes if availability else '' }}"
-                             {% if not can_edit %}disabled{% endif %}>
-                                    </td>
-                                    <td>
-                                        {% if match.is_cup_match %}
-                                            <span class="badge bg-warning text-dark">Beker</span>
-                                        {% else %}
-                                            <span class="badge bg-primary">Competitie</span>
-                                        {% endif %}
-                                        {% if match.round_name %}
-                                            <br><small class="text-muted">{{ match.round_name }}</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if match.is_home %}
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-home"></i> Thuis
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-warning text-dark">
-                                                <i class="fas fa-road"></i> Uit
-                                            </span>
-                                        {% endif %}
-                                    </td>
+                <style>
+                /* Mobile-only tweaks to improve tap targets and spacing */
+                @media (max-width: 767.98px) {
+                    .mobile-card .card-body { padding: .75rem; }
+                    .mobile-card .match-title { font-size: 0.95rem; }
+                    .mobile-card .match-subtitle { font-size: 0.85rem; }
+                    .mobile-card .form-switch .form-check-input { transform: scale(1.2); }
+                }
+                </style>
+
+                <!-- Desktop/tablet view -->
+                <div id="availabilityDesktop" class="d-none d-md-block">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Wedstrijd</th>
+                                    <th class="text-center">Beschikbaar</th>
+                                    <th>Notities</th>
+                                    <th>Type</th>
+                                    <th>Locatie</th>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {% for match in matches %}
+                                    {% set availability = availability_data.get(match.id) %}
+                                    <tr class="{% if match.is_home %}table-success{% else %}table-warning{% endif %}">
+                                        <td>
+                                            <strong>{{ match.match_date|date_nl }}</strong>
+                                            {% if match.match_time %}
+                                                <br><small class="text-muted">{{ match.match_time }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
+                                            {% if match.location %}
+                                                <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.location }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input availability-toggle" 
+                                                       type="checkbox" 
+                                                       id="availability_{{ match.id }}"
+                                                       data-match-id="{{ match.id }}"
+                                                       {% if availability and availability.is_available %}checked{% endif %}
+                                                       {% if not can_edit %}disabled{% endif %}>
+                                                <label class="form-check-label" for="availability_{{ match.id }}">
+                                                    <span class="available-text {% if availability and availability.is_available %}text-success{% else %}text-danger{% endif %}">
+                                                        {% if availability and availability.is_available %}
+                                                            <i class="fas fa-check"></i> Ja
+                                                        {% else %}
+                                                            <i class="fas fa-times"></i> Nee
+                                                        {% endif %}
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="text" 
+                                                   class="form-control form-control-sm notes-input" 
+                                                   data-match-id="{{ match.id }}"
+                                                   placeholder="Optionele notitie..."
+                                                   value="{{ availability.notes if availability else '' }}"
+                                                   {% if not can_edit %}disabled{% endif %}>
+                                        </td>
+                                        <td>
+                                            {% if match.is_cup_match %}
+                                                <span class="badge bg-warning text-dark">Beker</span>
+                                            {% else %}
+                                                <span class="badge bg-primary">Competitie</span>
+                                            {% endif %}
+                                            {% if match.round_name %}
+                                                <br><small class="text-muted">{{ match.round_name }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if match.is_home %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-home"></i> Thuis
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-road"></i> Uit
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Mobile view -->
+                <div id="availabilityMobile" class="d-md-none">
+                    {% for match in matches %}
+                        {% set availability = availability_data.get(match.id) %}
+                        <div class="card mobile-card mb-2">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div class="pe-2">
+                                        <div class="match-title"><strong>{{ match.match_date|date_nl }}</strong>{% if match.match_time %} <small class="text-muted">{{ match.match_time }}</small>{% endif %}</div>
+                                        <div class="match-subtitle text-muted small">
+                                            <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
+                                        </div>
+                                        {% if match.location %}
+                                            <div class="text-muted small"><i class="fas fa-map-marker-alt"></i> {{ match.location }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        <div>
+                                            {% if match.is_cup_match %}
+                                                <span class="badge bg-warning text-dark">Beker</span>
+                                            {% else %}
+                                                <span class="badge bg-primary">Competitie</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="mt-1">
+                                            {% if match.is_home %}
+                                                <span class="badge bg-success"><i class="fas fa-home"></i> Thuis</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark"><i class="fas fa-road"></i> Uit</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between mt-2">
+                                    <label class="me-2 mb-0">Beschikbaar:</label>
+                                    <div class="form-check form-switch ms-auto">
+                                        <input class="form-check-input availability-toggle" 
+                                               type="checkbox" 
+                                               id="availability_m_{{ match.id }}"
+                                               data-match-id="{{ match.id }}"
+                                               {% if availability and availability.is_available %}checked{% endif %}
+                                               {% if not can_edit %}disabled{% endif %}>
+                                        <label class="form-check-label ms-2" for="availability_m_{{ match.id }}">
+                                            <span class="available-text {% if availability and availability.is_available %}text-success{% else %}text-danger{% endif %}">
+                                                {% if availability and availability.is_available %}
+                                                    <i class="fas fa-check"></i> Ja
+                                                {% else %}
+                                                    <i class="fas fa-times"></i> Nee
+                                                {% endif %}
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <input type="text" 
+                                           class="form-control form-control-sm notes-input" 
+                                           data-match-id="{{ match.id }}"
+                                           placeholder="Optionele notitie..."
+                                           value="{{ availability.notes if availability else '' }}"
+                                           {% if not can_edit %}disabled{% endif %}>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
                 
                 {% if can_edit %}
@@ -212,10 +291,19 @@
 document.addEventListener('DOMContentLoaded', function() {
     const formEl = document.getElementById('availabilityForm');
     const playerId = formEl ? formEl.dataset.playerId : null;
+    const desktopContainer = document.getElementById('availabilityDesktop');
+    const mobileContainer = document.getElementById('availabilityMobile');
+    function getActiveContainer() {
+        // Prefer desktop if visible, else mobile
+        if (desktopContainer && window.getComputedStyle(desktopContainer).display !== 'none') return desktopContainer;
+        if (mobileContainer) return mobileContainer;
+        return document; // fallback
+    }
     
     // Update statistics
     function updateStats() {
-        const toggles = document.querySelectorAll('.availability-toggle');
+        const container = getActiveContainer();
+        const toggles = container.querySelectorAll('.availability-toggle');
         let available = 0, unavailable = 0, unknown = 0;
         
         toggles.forEach(toggle => {
@@ -223,8 +311,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 available++;
             } else {
                 const matchId = toggle.dataset.matchId;
-                const hasExistingData = toggle.closest('tr').querySelector('.notes-input').value || 
-                                      toggle.hasAttribute('data-has-existing');
+                const row = toggle.closest('tr') || toggle.closest('.card');
+                const notesEl = row ? row.querySelector('.notes-input') : null;
+                const hasExistingData = (notesEl && notesEl.value) || toggle.hasAttribute('data-has-existing');
                 if (hasExistingData) {
                     unavailable++;
                 } else {
@@ -238,10 +327,15 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('unknownCount').textContent = unknown;
     }
     
-    // Handle availability toggle changes
+    // Handle availability toggle changes (and mirror to the other view)
     document.querySelectorAll('.availability-toggle').forEach(toggle => {
         toggle.addEventListener('change', function() {
-            const label = this.nextElementSibling.querySelector('.available-text');
+            // label can be sibling, or within the next label element
+            let label = this.nextElementSibling && this.nextElementSibling.querySelector ? this.nextElementSibling.querySelector('.available-text') : null;
+            if (!label) {
+                const lbl = this.closest('.form-switch')?.querySelector('.available-text');
+                if (lbl) label = lbl;
+            }
             if (this.checked) {
                 label.innerHTML = '<i class="fas fa-check"></i> Ja';
                 label.className = 'available-text text-success';
@@ -249,14 +343,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 label.innerHTML = '<i class="fas fa-times"></i> Nee';
                 label.className = 'available-text text-danger';
             }
+
+            // Mirror to the corresponding toggle in the other container
+            const matchId = this.dataset.matchId;
+            const otherContainer = this.closest('#availabilityDesktop') ? mobileContainer : desktopContainer;
+            if (otherContainer) {
+                const otherToggle = otherContainer.querySelector(`.availability-toggle[data-match-id="${matchId}"]`);
+                if (otherToggle && otherToggle.checked !== this.checked) {
+                    otherToggle.checked = this.checked;
+                    // update its label too
+                    let otherLabel = otherToggle.nextElementSibling && otherToggle.nextElementSibling.querySelector ? otherToggle.nextElementSibling.querySelector('.available-text') : null;
+                    if (!otherLabel) {
+                        const olbl = otherToggle.closest('.form-switch')?.querySelector('.available-text');
+                        if (olbl) otherLabel = olbl;
+                    }
+                    if (otherLabel) {
+                        if (this.checked) {
+                            otherLabel.innerHTML = '<i class="fas fa-check"></i> Ja';
+                            otherLabel.className = 'available-text text-success';
+                        } else {
+                            otherLabel.innerHTML = '<i class="fas fa-times"></i> Nee';
+                            otherLabel.className = 'available-text text-danger';
+                        }
+                    }
+                }
+            }
             updateStats();
+        });
+    });
+
+    // Mirror notes input changes between views
+    document.querySelectorAll('.notes-input').forEach(input => {
+        input.addEventListener('input', function() {
+            const matchId = this.dataset.matchId;
+            const otherContainer = this.closest('#availabilityDesktop') ? mobileContainer : desktopContainer;
+            if (otherContainer) {
+                const otherInput = otherContainer.querySelector(`.notes-input[data-match-id="${matchId}"]`);
+                if (otherInput && otherInput.value !== this.value) {
+                    otherInput.value = this.value;
+                }
+            }
         });
     });
     
     // Select all available
     const btnAll = document.getElementById('selectAll');
     if (btnAll) btnAll.addEventListener('click', function() {
-        document.querySelectorAll('.availability-toggle').forEach(toggle => {
+        const container = getActiveContainer();
+        container.querySelectorAll('.availability-toggle').forEach(toggle => {
             toggle.checked = true;
             toggle.dispatchEvent(new Event('change'));
         });
@@ -265,7 +399,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Select none available
     const btnNone = document.getElementById('selectNone');
     if (btnNone) btnNone.addEventListener('click', function() {
-        document.querySelectorAll('.availability-toggle').forEach(toggle => {
+        const container = getActiveContainer();
+        container.querySelectorAll('.availability-toggle').forEach(toggle => {
             toggle.checked = false;
             toggle.dispatchEvent(new Event('change'));
         });
@@ -279,11 +414,12 @@ document.addEventListener('DOMContentLoaded', function() {
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opslaan...';
         
         const updates = [];
-        
-        document.querySelectorAll('.availability-toggle').forEach(toggle => {
+        const container = getActiveContainer();
+        container.querySelectorAll('.availability-toggle').forEach(toggle => {
             const matchId = toggle.dataset.matchId;
             const isAvailable = toggle.checked;
-            const notes = toggle.closest('tr').querySelector('.notes-input').value;
+            const row = toggle.closest('tr') || toggle.closest('.card');
+            const notes = row.querySelector('.notes-input')?.value || '';
             
             updates.push({
                 match_id: matchId,

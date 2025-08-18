@@ -11,6 +11,122 @@ from app.models.player import Player
 
 single_planning = Blueprint('single_planning', __name__, url_prefix='/planning')
 
+# Helper to build matrix data for reuse across views
+def _build_matrix_data():
+    service = SinglePlanning()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Matches
+    cursor.execute('''
+        SELECT id, match_date, home_team, away_team, is_home, round_name, is_played, is_cup_match
+        FROM matches 
+        ORDER BY match_date, id
+    ''')
+    matches = cursor.fetchall()
+
+    # Players (active)
+    cursor.execute('''
+        SELECT id, name, email 
+        FROM players 
+        WHERE is_active = TRUE 
+        ORDER BY name
+    ''')
+    players = cursor.fetchall()
+
+    # Assignments
+    cursor.execute('''
+        SELECT 
+            mp.match_id,
+            mp.player_id,
+            mp.is_pinned,
+            mp.actually_played,
+            p.name
+        FROM match_planning mp
+        JOIN players p ON mp.player_id = p.id
+        WHERE mp.planning_version_id = 1
+        ORDER BY mp.match_id, p.name
+    ''')
+    assignments = cursor.fetchall()
+
+    # Availability
+    cursor.execute('''
+        SELECT 
+            pa.player_id,
+            pa.match_id,
+            pa.is_available,
+            pa.notes
+        FROM player_availability pa
+        WHERE EXISTS (
+            SELECT 1 FROM matches m WHERE m.id = pa.match_id
+        )
+    ''')
+    availability_data = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    # Build maps
+    player_assignments = {}
+    pinned_assignments = {}
+    actually_played = {}
+    for a in assignments:
+        pid = a['player_id']
+        mid = a['match_id']
+        if pid not in player_assignments:
+            player_assignments[pid] = set()
+            pinned_assignments[pid] = set()
+            actually_played[pid] = set()
+        player_assignments[pid].add(mid)
+        if a['is_pinned']:
+            pinned_assignments[pid].add(mid)
+        if a['actually_played']:
+            actually_played[pid].add(mid)
+
+    availability_map = {}
+    for av in availability_data:
+        pid = av['player_id']
+        mid = av['match_id']
+        availability_map.setdefault(pid, {})[mid] = {
+            'is_available': av['is_available'],
+            'notes': av['notes']
+        }
+
+    # Stats
+    player_stats = {}
+    total_possible_matches = len(matches)
+    for p in players:
+        pid = p['id']
+        total_matches = len(player_assignments.get(pid, set()))
+        total_pinned = len(pinned_assignments.get(pid, set()))
+        total_played = len(actually_played.get(pid, set()))
+        percentage = (total_matches / total_possible_matches * 100) if total_possible_matches else 0
+        player_stats[pid] = {
+            'total_matches': total_matches,
+            'percentage': percentage,
+            'total_pinned': total_pinned,
+            'total_played': total_played
+        }
+
+    matrix_data = {
+        'matches': matches,
+        'players': players,
+        'assignments': player_assignments,
+        'pinned_assignments': pinned_assignments,
+        'actually_played': actually_played,
+        'availability': availability_map,
+        'stats': player_stats
+    }
+
+    from types import SimpleNamespace
+    version = SimpleNamespace()
+    version.id = 1
+    version.name = "Team Planning (Single System)"
+    version.description = "Geïntegreerde planning met pin en regeneratie functionaliteit"
+    version.is_final = False
+    version.created_at = "Altijd actief"
+
+    return matrix_data, version
+
 @single_planning.route('/')
 @login_required
 def dashboard():
@@ -296,147 +412,11 @@ def matrix_view():
     """Show matrix view of single planning."""
     try:
         print("🔍 Starting matrix view...")
-        service = SinglePlanning()
-        
-        # Get all matches and players
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        print("📅 Getting matches...")
-        # Get matches
-        cursor.execute('''
-            SELECT id, match_date, home_team, away_team, is_home, round_name, is_played, is_cup_match
-            FROM matches 
-            ORDER BY match_date, id
-        ''')
-        matches = cursor.fetchall()
-        print(f"Found {len(matches)} matches")
-        
-        print("👥 Getting players...")
-        # Get players
-        cursor.execute('''
-            SELECT id, name, email 
-            FROM players 
-            WHERE is_active = TRUE 
-            ORDER BY name
-        ''')
-        players = cursor.fetchall()
-        print(f"Found {len(players)} players")
-        
-        print("📋 Getting planning assignments...")
-        # Get single planning assignments (version_id = 1)
-        cursor.execute('''
-            SELECT 
-                mp.match_id,
-                mp.player_id,
-                mp.is_pinned,
-                mp.actually_played,
-                p.name
-            FROM match_planning mp
-            JOIN players p ON mp.player_id = p.id
-            WHERE mp.planning_version_id = 1
-            ORDER BY mp.match_id, p.name
-        ''')
-        assignments = cursor.fetchall()
-        print(f"Found {len(assignments)} planning assignments")
-        
-        print("📊 Getting availability data...")
-        # Get player availability data
-        cursor.execute('''
-            SELECT 
-                pa.player_id,
-                pa.match_id,
-                pa.is_available,
-                pa.notes
-            FROM player_availability pa
-            WHERE EXISTS (
-                SELECT 1 FROM matches m WHERE m.id = pa.match_id
-            )
-        ''')
-        availability_data = cursor.fetchall()
-        print(f"Found {len(availability_data)} availability entries")
-        cursor.close()
-        conn.close()
-        
-        print("🔧 Building matrix structure...")
-        # Build matrix structure
-        player_assignments = {}
-        pinned_assignments = {}
-        actually_played = {}
-        
-        for assignment in assignments:
-            match_id = assignment['match_id']
-            player_id = assignment['player_id']
-            
-            if player_id not in player_assignments:
-                player_assignments[player_id] = set()
-                pinned_assignments[player_id] = set()
-                actually_played[player_id] = set()
-            
-            player_assignments[player_id].add(match_id)
-            
-            if assignment['is_pinned']:
-                pinned_assignments[player_id].add(match_id)
-            
-            if assignment['actually_played']:
-                actually_played[player_id].add(match_id)
-        
-        # Build availability structure
-        availability_map = {}
-        for avail in availability_data:
-            player_id = avail['player_id']
-            match_id = avail['match_id']
-            
-            if player_id not in availability_map:
-                availability_map[player_id] = {}
-            availability_map[player_id][match_id] = {
-                'is_available': avail['is_available'],
-                'notes': avail['notes']
-            }
-        
-        print("📈 Calculating statistics...")
-        # Calculate statistics
-        player_stats = {}
-        for player in players:
-            player_id = player['id']
-            total_matches = len(player_assignments.get(player_id, set()))
-            total_possible_matches = len(matches)
-            percentage = (total_matches / total_possible_matches * 100) if total_possible_matches > 0 else 0
-            total_pinned = len(pinned_assignments.get(player_id, set()))
-            total_played = len(actually_played.get(player_id, set()))
-            
-            player_stats[player_id] = {
-                'total_matches': total_matches,
-                'percentage': percentage,
-                'total_pinned': total_pinned,
-                'total_played': total_played
-            }
-        
-        matrix_data = {
-            'matches': matches,
-            'players': players,
-            'assignments': player_assignments,
-            'pinned_assignments': pinned_assignments,
-            'actually_played': actually_played,
-            'availability': availability_map,
-            'stats': player_stats
-        }
-        
-        print("🎭 Creating version object...")
-        # Create fake version object for compatibility with matrix template
-        from types import SimpleNamespace
-        version = SimpleNamespace()
-        version.id = 1
-        version.name = "Team Planning (Single System)"
-        version.description = "Geïntegreerde planning met pin en regeneratie functionaliteit"
-        version.is_final = False
-        version.created_at = "Altijd actief"
-        
+        matrix_data, version = _build_matrix_data()
         print("✅ Rendering matrix template...")
         return render_template('single_planning/matrix.html', 
-                             version=version, 
-                             matrix_data=matrix_data)
-                             
+                               version=version, 
+                               matrix_data=matrix_data)
     except Exception as e:
         print(f"❌ Error in matrix_view: {e}")
         import traceback
@@ -618,3 +598,16 @@ def single_dashboard():
 def single_matrix():
     """Redirect single/matrix to main matrix."""
     return redirect(url_for('single_planning.matrix_view'))
+
+@single_planning.route('/matrix/handdrawn')
+@login_required
+def matrix_handdrawn():
+    """Hand-drawn style printable matrix (catchy, like handwritten)."""
+    try:
+        matrix_data, version = _build_matrix_data()
+        return render_template('single_planning/handdrawn_matrix.html',
+                               version=version,
+                               matrix_data=matrix_data)
+    except Exception as e:
+        flash(f'Fout bij laden handgetekende matrix: {e}', 'error')
+        return redirect(url_for('single_planning.matrix_view'))

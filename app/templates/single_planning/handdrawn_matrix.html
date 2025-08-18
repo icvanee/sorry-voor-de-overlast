@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Teamplannig{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h4"><i class="fas fa-pen"></i> Teamplannig</h1>
+  <div class="btn-group print-hide">
+    <a href="{{ url_for('single_planning.matrix_view') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left"></i> Terug</a>
+    <button class="btn btn-sm btn-secondary" onclick="window.print()"><i class="fas fa-print"></i> Afdrukken</button>
+  </div>
+  </div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive hand-wrap">
+      <table class="table table-borderless hand-table" id="handMatrix">
+        <colgroup>
+          <col class="col-match-col">
+          {% for player in matrix_data.players %}
+          <col class="col-player-col">
+          {% endfor %}
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="col-match">Wedstrijd</th>
+            {% for player in matrix_data.players %}
+    <th class="col-player"><div class="vname">{{ (player.name or '').split(' ')[0] }}</div></th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for match in matrix_data.matches %}
+          <tr>
+            <td class="cell-match">
+              <div class="m-date">{{ match.match_date|date_nl if match.match_date else 'N.t.b.' }}</div>
+              {% set opponent = match.away_team if match.is_home else match.home_team %}
+              <div class="m-opponent">
+                {{ opponent }} ({{ 'T' if match.is_home else 'U' }})
+                {% if match.is_cup_match %}<span class="f-beker ms-1">B</span>{% endif %}
+              </div>
+            </td>
+            {% for player in matrix_data.players %}
+              {% set is_assigned = player.id in matrix_data.assignments and match.id in matrix_data.assignments[player.id] %}
+              {% set actually_played = player.id in matrix_data.actually_played and match.id in matrix_data.actually_played[player.id] %}
+              {% set availability = matrix_data.availability.get(player.id, {}).get(match.id, {}) %}
+              {% set is_available = availability.get('is_available', True) %}
+              <td class="cell-mark">
+                {% if not is_available %}
+                  <span class="mark mark-x">×</span>
+                {% elif is_assigned %}
+                  {% if actually_played %}
+                    <span class="mark mark-star">★</span>
+                  {% else %}
+                    <span class="mark mark-o">◯</span>
+                  {% endif %}
+                {% else %}
+                  <span class="mark mark-empty">&nbsp;</span>
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+ </div>
+
+<!-- legend intentionally removed to save space on print -->
+
+<style>
+/* Hand-drawn look */
+@font-face {
+  font-family: 'CaveatHand';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Caveat'), local('Caveat-Regular');
+}
+
+.hand-table {
+  width: max-content !important; /* do not stretch/shrink with container */
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed; /* enforce fixed column widths */
+  font-family: 'CaveatHand', 'Caveat', 'Comic Sans MS', 'Bradley Hand', cursive, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  font-size: 16px; /* iets kleiner */
+  color: #1f2937;
+}
+
+.hand-table th, .hand-table td {
+  box-sizing: border-box;
+  border: 2px solid #222;
+  border-right-width: 2.5px; /* slight irregularity */
+  border-bottom-width: 2.5px;
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+
+.hand-table thead th {
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.col-match { width: 250px; min-width: 250px; max-width: 250px; }
+.col-player { width: 100px; min-width: 100px; max-width: 100px; text-align: center; padding: 0; }
+
+/* ensure body cells follow the same widths */
+.hand-table td.cell-match { width: 250px; min-width: 250px; max-width: 250px; }
+.hand-table td.cell-mark { width: 100px; min-width: 100px; max-width: 100px; }
+
+.vname {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  line-height: 1;
+  font-size: 14px;
+  letter-spacing: 1px;
+  margin: 0 auto;
+}
+
+.cell-match { line-height: 1.1; }
+.m-date { font-weight: 700; }
+.m-opponent { color: #111827; font-size: 0.95em; font-weight: 700; }
+.m-flags { letter-spacing: 4px; margin-top: 2px; }
+.f-beker { border: 2px solid #222; padding: 0 6px; border-radius: 4px; }
+.f-home { font-weight: 700; }
+
+.cell-mark { text-align: center; }
+.mark { display: inline-block; min-width: 16px; }
+.mark-o { font-weight: 700; }
+.mark-x { font-weight: 800; }
+.mark-star { color: #f59e0b; }
+
+/* Slight jitter effect using box-shadow offsets to mimic pen pressure */
+/* Ensure perfectly white/transparent backgrounds (no cream tint) */
+.hand-table, 
+.hand-table td, 
+.hand-table th, 
+.hand-table .cell-match, 
+.hand-table .cell-mark, 
+.hand-table .mark, 
+.hand-table .m-date, 
+.hand-table .m-opponent, 
+.hand-table .vname {
+  background: transparent !important;
+}
+
+/* Print: pure, no chrome */
+@media print {
+  @page { size: A4 portrait; margin: 6mm; }
+  html, body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  nav.navbar, .sidebar, .version-footer, .print-hide { display: none !important; }
+  .container, .container-fluid, .row, main { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
+  main { width: 100% !important; }
+  .card, .card-body { border: none !important; padding: 0 !important; box-shadow: none !important; }
+  /* Fill width and compact to target single page */
+  .hand-wrap { transform: scale(0.9); transform-origin: top left; }
+  .hand-table { width: 100% !important; table-layout: fixed !important; font-size: 10px; }
+  .hand-table th, .hand-table td { padding: 2px 3px; border-width: 1px; }
+  .hand-table col.col-match-col { width: 30mm !important; }
+  .hand-table col.col-player-col { width: 10mm !important; }
+  .vname { font-size: 8px !important; letter-spacing: 0.3px; }
+  .m-date { font-size: 10px; }
+  .m-opponent { font-size: 10px; }
+  .mark { min-width: auto; font-size: 11px; }
+  .m-flags { letter-spacing: 1px; }
+  .legend { font-size: 9px; }
+}
+</style>
+{% endblock %}

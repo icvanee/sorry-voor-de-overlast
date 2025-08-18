@@ -26,6 +26,18 @@
             border: 2px solid #0d6efd !important; /* primary border for emphasis */
             color: #0b2239 !important; /* ensure readable text */
         }
+
+        /* Compact header on mobile */
+        @media (max-width: 767.98px) {
+            .navbar.team-header { padding-top: .25rem; padding-bottom: .25rem; }
+            .navbar.team-header .container-fluid { padding-left: .5rem; padding-right: .5rem; }
+            .navbar.team-header .navbar-brand img { height: 32px !important; }
+            .navbar.team-header .season-text { display: none !important; }
+            .navbar.team-header .navbar-text small { display: none !important; } /* hide role */
+            .navbar.team-header .pw-badge { display: none !important; }
+            .navbar.team-header .navbar-nav .btn { padding: .2rem .45rem; line-height: 1.1; }
+            .navbar.team-header .navbar-text { font-size: .95rem; }
+        }
     </style>
 </head>
 <body>
@@ -35,8 +47,8 @@
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" height="50" class="me-2">
             </a>
-            <div class="navbar-nav ms-auto align-items-center">
-                <span class="navbar-text me-3">Seizoen 2025-2026 | 4A</span>
+            <div class="navbar-nav ms-auto align-items-center flex-row gap-2">
+                <span class="navbar-text me-3 season-text">Seizoen 2025-2026 | 4A</span>
                 {% if current_user %}
                 <a class="navbar-text me-2 text-white text-decoration-none" 
                    href="{{ url_for('players.player_availability', player_id=current_user.id) }}" 
@@ -44,11 +56,13 @@
                     <i class="fas fa-user"></i> {{ current_user.name }}
                     <small class="text-light ms-1">({{ (current_user.role or 'speler')|capitalize }})</small>
                     {% if current_user.force_password_change %}
-                        <span class="badge bg-warning text-dark ms-2"><i class="fas fa-key"></i> wijzig wachtwoord</span>
+                        <span class="badge bg-warning text-dark ms-2 pw-badge"><i class="fas fa-key"></i> wijzig wachtwoord</span>
                     {% endif %}
                 </a>
-                <a class="btn btn-sm btn-outline-light me-2" href="{{ url_for('auth.change_password') }}" title="Wachtwoord wijzigen"><i class="fas fa-key"></i></a>
-                <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.logout') }}">Logout</a>
+                <div class="btn-group btn-group-sm ms-2" role="group" aria-label="Account acties">
+                    <a class="btn btn-outline-light" href="{{ url_for('auth.change_password') }}" title="Wachtwoord wijzigen" aria-label="Wachtwoord wijzigen"><i class="fas fa-key"></i></a>
+                    <a class="btn btn-outline-light" href="{{ url_for('auth.logout') }}" title="Uitloggen" aria-label="Uitloggen"><i class="fas fa-right-from-bracket"></i></a>
+                </div>
                 {% else %}
                 <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.login') }}">Login</a>
                 {% endif %}

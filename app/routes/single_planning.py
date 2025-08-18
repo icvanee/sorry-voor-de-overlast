@@ -269,6 +269,19 @@ def api_regenerate():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@single_planning.route('/api/undo', methods=['POST'])
+@roles_required('captain', 'reserve captain')
+def api_undo():
+    """API: Undo last regeneration by restoring previous snapshot."""
+    try:
+        result = SinglePlanning.undo_last_snapshot()
+        if result.get('success'):
+            return jsonify({'success': True, 'message': f"Undo uitgevoerd. Hersteld: {result.get('restored', 0)} items."})
+        else:
+            return jsonify({'success': False, 'message': result.get('message', 'Undo mislukt')}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Undo fout: {e}'}), 500
+
 @single_planning.route('/matrix')
 @login_required
 def matrix():

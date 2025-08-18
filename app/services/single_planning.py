@@ -236,6 +236,11 @@ class SinglePlanning:
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
+
+            # Ensure undo tables exist and snapshot current planning before any changes
+            SinglePlanning._create_undo_tables(cursor)
+            SinglePlanning._create_undo_snapshot(cursor, plan_mode, cutoff_date)
+            conn.commit()
             
             # === STAP 1: DATA VERZAMELEN ===
             print("\n📊 STEP 1: GATHERING DATA...")
@@ -916,6 +921,84 @@ class SinglePlanning:
             import traceback
             traceback.print_exc()
             return {'success': False, 'message': f'Regeneration failed: {str(e)}'}
+
+    @staticmethod
+    def _create_undo_tables(cursor):
+        """Create undo snapshot tables if they don't exist."""
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS planning_undo_stack (
+                id SERIAL PRIMARY KEY,
+                created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                plan_mode TEXT,
+                cutoff_date DATE,
+                note TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS planning_undo_items (
+                undo_id INTEGER REFERENCES planning_undo_stack(id) ON DELETE CASCADE,
+                match_id INTEGER NOT NULL,
+                player_id INTEGER NOT NULL,
+                is_pinned BOOLEAN DEFAULT FALSE,
+                actually_played BOOLEAN DEFAULT FALSE,
+                UNIQUE (undo_id, match_id, player_id)
+            )
+        ''')
+
+    @staticmethod
+    def _create_undo_snapshot(cursor, plan_mode, cutoff_date):
+        """Snapshot the entire current single planning (version_id=1) before changes."""
+        # Create stack entry
+        cursor.execute('''
+            INSERT INTO planning_undo_stack (plan_mode, cutoff_date, note)
+            VALUES (%s, %s, %s)
+            RETURNING id
+        ''', (plan_mode, cutoff_date if isinstance(cutoff_date, str) or cutoff_date is None else getattr(cutoff_date, 'isoformat', lambda: cutoff_date)(), 'Auto snapshot before regeneration'))
+        undo_id = cursor.fetchone()['id']
+        # Copy all current assignments into items
+        cursor.execute('''
+            INSERT INTO planning_undo_items (undo_id, match_id, player_id, is_pinned, actually_played)
+            SELECT %s, mp.match_id, mp.player_id, mp.is_pinned, mp.actually_played
+            FROM match_planning mp
+            WHERE mp.planning_version_id = 1
+        ''', (undo_id,))
+        return undo_id
+
+    @staticmethod
+    def undo_last_snapshot():
+        """Restore the most recent snapshot of the single planning and pop it from the stack."""
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            SinglePlanning._create_undo_tables(cursor)
+
+            # Get latest snapshot
+            cursor.execute('SELECT id FROM planning_undo_stack ORDER BY id DESC LIMIT 1')
+            row = cursor.fetchone()
+            if not row:
+                cursor.close()
+                conn.close()
+                return {'success': False, 'message': 'Geen undo beschikbaar'}
+            undo_id = row['id']
+
+            # Clear current planning and restore from snapshot
+            cursor.execute('DELETE FROM match_planning WHERE planning_version_id = 1')
+            cursor.execute('''
+                INSERT INTO match_planning (planning_version_id, match_id, player_id, is_pinned, actually_played)
+                SELECT 1, match_id, player_id, is_pinned, actually_played
+                FROM planning_undo_items
+                WHERE undo_id = %s
+            ''', (undo_id,))
+            restored = cursor.rowcount
+
+            # Pop the snapshot
+            cursor.execute('DELETE FROM planning_undo_stack WHERE id = %s', (undo_id,))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return {'success': True, 'restored': restored}
+        except Exception as e:
+            return {'success': False, 'message': f'Undo failed: {e}'}
     
     
     @staticmethod

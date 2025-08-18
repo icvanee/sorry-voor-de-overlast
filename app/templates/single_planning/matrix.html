@@ -13,6 +13,9 @@
             <button class="btn btn-sm btn-success" onclick="regeneratePlanning()">
                 <i class="fas fa-sync"></i> Regenereer Planning
             </button>
+            <button class="btn btn-sm btn-outline-warning" onclick="undoPlanning()" title="Herstel vorige planning">
+                <i class="fas fa-undo"></i> Undo
+            </button>
         </div>
         <div class="btn-group me-2">
             <button class="btn btn-sm btn-success" onclick="exportToPDF()">
@@ -791,6 +794,45 @@ function regeneratePlanning() {
         console.error('❌ Button not found');
         alert('Knop niet gevonden');
     }
+}
+
+// Undo functionality
+function undoPlanning() {
+    if (!confirm('Weet je zeker dat je de vorige planning wilt herstellen?')) {
+        return;
+    }
+    const btns = document.querySelectorAll('button[onclick="undoPlanning()"], button[onclick="regeneratePlanning()"]');
+    const undoBtn = document.querySelector('button[onclick="undoPlanning()"]');
+    const original = undoBtn ? undoBtn.innerHTML : '';
+    if (undoBtn) {
+        undoBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Undo...';
+        undoBtn.disabled = true;
+    }
+    btns.forEach(b => b.disabled = true);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/planning/api/undo', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                if (xhr.status === 200 && data.success) {
+                    showToast(data.message || 'Planning hersteld', 'success');
+                    setTimeout(() => window.location.reload(), 1200);
+                } else {
+                    showToast((data && (data.message || data.error)) || 'Undo mislukt', 'error');
+                    if (undoBtn) { undoBtn.innerHTML = original; undoBtn.disabled = false; }
+                    btns.forEach(b => b.disabled = false);
+                }
+            } catch (e) {
+                showToast('Onverwacht serverantwoord bij undo', 'error');
+                if (undoBtn) { undoBtn.innerHTML = original; undoBtn.disabled = false; }
+                btns.forEach(b => b.disabled = false);
+            }
+        }
+    }
+    xhr.send('{}');
 }
 
 function showToast(message, type = 'info') {

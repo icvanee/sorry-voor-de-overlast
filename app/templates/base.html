@@ -130,6 +130,70 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+        <!-- Global Toast Container -->
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 1080">
+                <div id="toastContainer"></div>
+        </div>
+
+        <!-- Global Confirm Modal -->
+        <div class="modal fade" id="globalConfirmModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-question-circle me-2"></i>Bevestigen</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="confirmModalMessage" class="mb-0">Weet je het zeker?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                        <button type="button" class="btn btn-primary" id="confirmModalConfirm">Bevestigen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        // Show a Bootstrap toast (types: 'success', 'danger', 'info', 'warning')
+        window.showToast = function(message, type = 'success') {
+                const container = document.getElementById('toastContainer');
+                if (!container) return;
+                const toastEl = document.createElement('div');
+                toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+                toastEl.setAttribute('role', 'alert');
+                toastEl.setAttribute('aria-live', 'assertive');
+                toastEl.setAttribute('aria-atomic', 'true');
+                toastEl.innerHTML = `
+                        <div class="d-flex">
+                                <div class="toast-body">${message}</div>
+                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>`;
+                container.appendChild(toastEl);
+                const toast = new bootstrap.Toast(toastEl, { delay: 2500 });
+                toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+                toast.show();
+        }
+
+        // Open a confirmation modal and resolve a Promise with true/false
+        window.confirmDialog = function(message) {
+                return new Promise((resolve) => {
+                        const modalEl = document.getElementById('globalConfirmModal');
+                        const msgEl = document.getElementById('confirmModalMessage');
+                        const confirmBtn = document.getElementById('confirmModalConfirm');
+                        if (!modalEl || !msgEl || !confirmBtn) { resolve(confirm(message)); return; }
+                        msgEl.textContent = message || 'Weet je het zeker?';
+                        const modal = new bootstrap.Modal(modalEl);
+                        let resolved = false;
+                        const onHidden = () => { if (!resolved) resolve(false); modalEl.removeEventListener('hidden.bs.modal', onHidden); };
+                        const onConfirm = () => { resolved = true; resolve(true); modal.hide(); confirmBtn.removeEventListener('click', onConfirm); };
+                        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+                        confirmBtn.addEventListener('click', onConfirm, { once: true });
+                        modal.show();
+                });
+        }
+        </script>
     <!-- Version footer -->
     <div class="version-footer fixed-bottom text-center py-1">
         Versie 2025.8.17.1

@@ -77,19 +77,21 @@
                                         <small class="text-muted">{{ player.role or 'Speler' }}</small>
                                     </div>
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" 
-                                                class="btn btn-outline-warning {% if player.is_pinned %}active{% endif %}"
-                                                onclick="togglePlayerPin({{ player.player_id }}, {{ 'false' if player.is_pinned else 'true' }})">
+                    <button type="button" 
+                        class="btn btn-outline-warning {% if player.is_pinned %}active{% endif %} btn-player-pin"
+                        data-player-id="{{ player.player_id }}"
+                        data-next-pin="{{ 'false' if player.is_pinned else 'true' }}">
                                             <i class="fas fa-thumbtack"></i>
                                         </button>
-                                        <button type="button" 
-                                                class="btn btn-outline-success {% if player.actually_played %}active{% endif %}"
-                                                onclick="toggleActuallyPlayed({{ player.player_id }}, {{ 'false' if player.actually_played else 'true' }})">
+                    <button type="button" 
+                        class="btn btn-outline-success {% if player.actually_played %}active{% endif %} btn-actually-played"
+                        data-player-id="{{ player.player_id }}"
+                        data-next-played="{{ 'false' if player.actually_played else 'true' }}">
                                             <i class="fas fa-check"></i>
                                         </button>
-                                        <button type="button" 
-                                                class="btn btn-outline-danger"
-                                                onclick="removePlayer({{ player.player_id }})">
+                    <button type="button" 
+                        class="btn btn-outline-danger btn-remove-player"
+                        data-player-id="{{ player.player_id }}">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </div>
@@ -125,9 +127,9 @@
                                         <h6 class="mb-1">{{ player.name }}</h6>
                                         <small class="text-muted">{{ player.role or 'Speler' }}</small>
                                     </div>
-                                    <button type="button" 
-                                            class="btn btn-sm btn-outline-primary"
-                                            onclick="addPlayer({{ player.id }})">
+                    <button type="button" 
+                        class="btn btn-sm btn-outline-primary btn-add-player"
+                        data-player-id="{{ player.id }}">
                                         <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
@@ -190,145 +192,141 @@
     </div>
 </div>
 
+<script type="application/json" id="match-data">
+{
+    "matchId": {{ match.id | tojson }},
+    "initialPlayerIds": {{ planning | map(attribute='player_id') | list | tojson }},
+    "hasPinnedPlayers": {{ ((planning|selectattr('is_pinned')|list)|length > 0) | tojson }},
+    "isPlayed": {{ match.is_played | tojson }}
+}
+</script>
+
 <script>
+// Inline data parsed from JSON block
+const __dataEl = document.getElementById('match-data');
+const { matchId, initialPlayerIds, hasPinnedPlayers, isPlayed } = JSON.parse(__dataEl.textContent);
+
+// Wire up dynamic buttons
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.btn-add-player').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const pid = parseInt(btn.getAttribute('data-player-id'), 10);
+            addPlayer(pid);
+        });
+    });
+    document.querySelectorAll('.btn-remove-player').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const pid = parseInt(btn.getAttribute('data-player-id'), 10);
+            removePlayer(pid);
+        });
+    });
+    document.querySelectorAll('.btn-player-pin').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const pid = parseInt(btn.getAttribute('data-player-id'), 10);
+            const nextPin = btn.getAttribute('data-next-pin') === 'true';
+            togglePlayerPin(pid, nextPin);
+        });
+    });
+    document.querySelectorAll('.btn-actually-played').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const pid = parseInt(btn.getAttribute('data-player-id'), 10);
+            const nextPlayed = btn.getAttribute('data-next-played') === 'true';
+            toggleActuallyPlayed(pid, nextPlayed);
+        });
+    });
+});
+
 function addPlayer(playerId) {
-    const currentPlayerIds = [{{ planning|map(attribute='player_id')|join(', ') }}];
-    const updatedPlayerIds = [...currentPlayerIds, playerId];
-    
-    updateMatchPlayers(updatedPlayerIds);
+    const currentPlayerIds = [...initialPlayerIds];
+    if (!currentPlayerIds.includes(playerId)) currentPlayerIds.push(playerId);
+    updateMatchPlayers(currentPlayerIds);
 }
 
 function removePlayer(playerId) {
-    const currentPlayerIds = [{{ planning|map(attribute='player_id')|join(', ') }}];
-    const updatedPlayerIds = currentPlayerIds.filter(id => id !== playerId);
-    
-    updateMatchPlayers(updatedPlayerIds);
+    const currentPlayerIds = [...initialPlayerIds];
+    const updated = currentPlayerIds.filter(id => id !== playerId);
+    updateMatchPlayers(updated);
 }
 
 function updateMatchPlayers(playerIds) {
-    fetch('/planning/api/match/{{ match.id }}/players', {
+    fetch('/planning/api/match/' + matchId + '/players', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            match_id: {{ match.id }},
-            player_ids: playerIds,
-            preserve_pinned: true
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_id: matchId, player_ids: playerIds, preserve_pinned: true })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Fout: ' + data.message);
-        }
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) { showToast('Spelers bijgewerkt', 'success'); location.reload(); }
+        else { showToast('Fout: ' + (d.message || d.error), 'danger'); }
     })
-    .catch(error => {
-    alert('Fout: ' + error.message);
-    });
+    .catch(e => showToast('Fout: ' + e.message, 'danger'));
 }
 
 function togglePlayerPin(playerId, pin) {
     fetch('/planning/api/player/' + playerId + '/pin', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            player_id: playerId,
-            match_id: {{ match.id }},
-            pinned: pin === 'true'
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: playerId, match_id: matchId, pinned: !!pin })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Fout: ' + data.message);
-        }
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) { showToast(pin ? 'Gepind' : 'Ontpind', 'success'); location.reload(); }
+        else { showToast('Fout: ' + (d.message || d.error), 'danger'); }
     })
-    .catch(error => {
-    alert('Fout: ' + error.message);
-    });
+    .catch(e => showToast('Fout: ' + e.message, 'danger'));
 }
 
 function toggleActuallyPlayed(playerId, played) {
     fetch('/planning/api/player/' + playerId + '/actually_played', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            player_id: playerId,
-            match_id: {{ match.id }},
-            actually_played: played === 'true'
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: playerId, match_id: matchId, actually_played: !!played })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Fout: ' + data.message);
-        }
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) { showToast(played ? 'Gemarkeerd als gespeeld' : 'Gemarkeerd als niet gespeeld', 'success'); location.reload(); }
+        else { showToast('Fout: ' + (d.message || d.error), 'danger'); }
     })
-    .catch(error => {
-    alert('Fout: ' + error.message);
-    });
+    .catch(e => showToast('Fout: ' + e.message, 'danger'));
 }
 
 function toggleMatchPin() {
-    const hasPinnedPlayers = {{ 'true' if planning|selectattr('is_pinned')|list else 'false' }};
-    
-    fetch('/planning/api/match/{{ match.id }}/pin', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            match_id: {{ match.id }},
-            pinned: !hasPinnedPlayers
+    const message = hasPinnedPlayers
+        ? `Weet je zeker dat je ALLE pins wilt verwijderen voor wedstrijd #${matchId}?`
+        : `Weet je zeker dat je alle spelers wilt PINNEN voor wedstrijd #${matchId}?`;
+    confirmDialog(message).then(ok => {
+        if (!ok) return;
+        fetch('/planning/api/match/' + matchId + '/pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ match_id: matchId, pinned: !hasPinnedPlayers })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Fout: ' + data.message);
-        }
-    })
-    .catch(error => {
-    alert('Fout: ' + error.message);
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) { showToast('Actie uitgevoerd', 'success'); location.reload(); }
+            else { showToast('Fout: ' + (d.message || d.error), 'danger'); }
+        })
+        .catch(e => showToast('Fout: ' + e.message, 'danger'));
     });
 }
 
 function toggleMatchPlayed() {
-    const isPlayed = {{ 'true' if match.is_played else 'false' }};
-    
-    fetch('/planning/api/match/{{ match.id }}/played', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            match_id: {{ match.id }},
-            played: !isPlayed
+    const message = !isPlayed
+        ? `Weet je zeker dat je wedstrijd #${matchId} wilt MARKEREN als gespeeld?`
+        : `Weet je zeker dat je wedstrijd #${matchId} als NIET gespeeld wilt markeren?`;
+    confirmDialog(message).then(ok => {
+        if (!ok) return;
+        fetch('/planning/api/match/' + matchId + '/played', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ match_id: matchId, played: !isPlayed })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        alert('Error: ' + error.message);
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) { showToast('Actie uitgevoerd', 'success'); location.reload(); }
+            else { showToast('Fout: ' + (d.message || d.error), 'danger'); }
+        })
+        .catch(e => showToast('Fout: ' + e.message, 'danger'));
     });
 }
 </script>

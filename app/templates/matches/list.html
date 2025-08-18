@@ -97,6 +97,24 @@
                                     {% if match.location %}
                                         <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.location }}</small>
                                     {% endif %}
+                                    
+                                    {% set players = planning_by_match.get(match.id, []) %}
+                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                        {% for p in players %}
+                                            {% set is_me = current_user and (p.player_id == current_user.id) %}
+                                            <span class="badge {% if p.is_pinned %}bg-warning{% elif p.actually_played %}bg-success{% else %}bg-light text-dark{% endif %} {% if is_me %}border border-2 border-primary fw-semibold{% endif %}"
+                                                  {% if is_me %}title="Dit ben jij" aria-label="Jouw naam"{% endif %}>
+                                                {{ p.name }}
+                                                {% if p.is_pinned %}<i class="fas fa-thumbtack"></i>{% endif %}
+                                                {% if p.actually_played %}<i class="fas fa-check"></i>{% endif %}
+                                            </span>
+                                        {% endfor %}
+                                        {% if players|length < 4 %}
+                                            <span class="badge bg-danger">Nog {{ 4 - players|length }} nodig</span>
+                                        {% elif players|length > 4 %}
+                                            <span class="badge bg-warning">{{ players|length - 4 }} extra</span>
+                                        {% endif %}
+                                    </div>
                                 </td>
                                 <td>
                                     {% if match.is_cup_match %}
@@ -118,7 +136,11 @@
                                 </td>
                                 <td>
                                     <!-- TODO: Add match status based on planning/results -->
-                                    <span class="badge bg-secondary">Gepland</span>
+                                    {% if match.is_played %}
+                                        <span class="badge bg-success">Gespeeld</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Gepland</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
@@ -130,6 +152,29 @@
                                            class="btn btn-outline-success" title="Planning">
                                             <i class="fas fa-users"></i>
                                         </a>
+                    {% set has_pinned = players|selectattr('is_pinned')|list %}
+                    <button type="button"
+                        class="btn btn-outline-warning btn-pin-all"
+                        title="{% if has_pinned %}Unpin all{% else %}Pin all{% endif %}"
+                        data-has-pinned="{{ 'true' if has_pinned else 'false' }}"
+                        data-match-id="{{ match.id }}">
+                                            {% if has_pinned %}
+                                                <i class="fas fa-unlock"></i>
+                                            {% else %}
+                                                <i class="fas fa-lock"></i>
+                                            {% endif %}
+                                        </button>
+                    <button type="button"
+                        class="btn btn-outline-success btn-mark-played"
+                        title="{% if match.is_played %}Markeer als niet gespeeld{% else %}Markeer als gespeeld{% endif %}"
+                        data-is-played="{{ 'true' if match.is_played else 'false' }}"
+                        data-match-id="{{ match.id }}">
+                                            {% if match.is_played %}
+                                                <i class="fas fa-undo"></i>
+                                            {% else %}
+                                                <i class="fas fa-check"></i>
+                                            {% endif %}
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -155,6 +200,64 @@
     </div>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.btn-pin-all').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const matchId = parseInt(btn.getAttribute('data-match-id'), 10);
+            const hasPinned = btn.getAttribute('data-has-pinned') === 'true';
+            toggleMatchPin(matchId, !hasPinned);
+        });
+    });
+    document.querySelectorAll('.btn-mark-played').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const matchId = parseInt(btn.getAttribute('data-match-id'), 10);
+            const isPlayed = btn.getAttribute('data-is-played') === 'true';
+            toggleMatchPlayed(matchId, !isPlayed);
+        });
+    });
+});
+
+function toggleMatchPin(matchId, pin) {
+        const message = pin
+            ? `Weet je zeker dat je alle spelers wilt PINNEN voor wedstrijd #${matchId}?`
+            : `Weet je zeker dat je ALLE pins wilt verwijderen voor wedstrijd #${matchId}?`;
+        confirmDialog(message).then(ok => {
+            if (!ok) return;
+    fetch('/planning/api/match/' + matchId + '/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_id: matchId, pinned: !!pin })
+    })
+    .then(r => r.json())
+    .then(d => {
+                if (d.success) { showToast('Actie uitgevoerd', 'success'); location.reload(); }
+                else { showToast('Fout: ' + (d.message || d.error), 'danger'); }
+    })
+            .catch(e => showToast('Fout: ' + e.message, 'danger'));
+        });
+}
+
+function toggleMatchPlayed(matchId, played) {
+        const message = played
+            ? `Weet je zeker dat je wedstrijd #${matchId} wilt MARKEREN als gespeeld?`
+            : `Weet je zeker dat je wedstrijd #${matchId} als NIET gespeeld wilt markeren?`;
+        confirmDialog(message).then(ok => {
+            if (!ok) return;
+    fetch('/planning/api/match/' + matchId + '/played', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_id: matchId, played: !!played })
+    })
+    .then(r => r.json())
+    .then(d => {
+                if (d.success) { showToast('Actie uitgevoerd', 'success'); location.reload(); }
+                else { showToast('Fout: ' + (d.message || d.error), 'danger'); }
+    })
+            .catch(e => showToast('Fout: ' + e.message, 'danger'));
+        });
+}
+</script>
 <!-- Statistics -->
 <div class="row mt-4">
     <div class="col-md-3">

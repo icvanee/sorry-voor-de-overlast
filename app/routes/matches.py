@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from app.utils.auth import login_required, roles_required
 from app.models.match import Match
 from app.models.player import Player
+from app.services.single_planning import SinglePlanning
 
 matches = Blueprint('matches', __name__)
 
@@ -11,7 +12,30 @@ def list_matches():
     """List all matches."""
     all_matches = Match.get_all()
     upcoming_matches = Match.get_upcoming()
-    return render_template('matches/list.html', matches=all_matches, upcoming_matches=upcoming_matches)
+
+    # Build planning grouped by match to show assigned players per match
+    try:
+        planning = SinglePlanning.get_planning()
+        planning_by_match = {}
+        for row in planning:
+            mid = row['match_id']
+            if mid not in planning_by_match:
+                planning_by_match[mid] = []
+            planning_by_match[mid].append({
+                'player_id': row['player_id'],
+                'name': row['player_name'],
+                'is_pinned': row.get('is_pinned', False),
+                'actually_played': row.get('actually_played', False)
+            })
+    except Exception:
+        planning_by_match = {}
+
+    return render_template(
+        'matches/list.html', 
+        matches=all_matches, 
+        upcoming_matches=upcoming_matches,
+        planning_by_match=planning_by_match
+    )
 
 @matches.route('/add', methods=['GET', 'POST'])
 @roles_required('captain', 'reserve captain')

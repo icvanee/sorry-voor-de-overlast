@@ -65,7 +65,6 @@
                         <tr>
                             <th>Datum</th>
                             <th>Wedstrijd</th>
-                            <th>Spelers</th>
                             <th>Status</th>
                             <th>Acties</th>
                         </tr>
@@ -87,12 +86,9 @@
                                             <span class="badge bg-secondary ms-2">UIT</span>
                                         {% endif %}
                                     </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex flex-wrap gap-1">
+                                    <div class="d-flex flex-wrap gap-1 mt-1">
                                         {% for player in players %}
-                                            <span class="badge 
-                                                {% if player.is_pinned %}bg-warning{% elif player.actually_played %}bg-success{% else %}bg-light text-dark{% endif %}">
+                                            <span class="badge {% if player.is_pinned %}bg-warning{% elif player.actually_played %}bg-success{% else %}bg-light text-dark{% endif %}">
                                                 {{ player.name }}
                                                 {% if player.is_pinned %}<i class="fas fa-thumbtack"></i>{% endif %}
                                                 {% if player.actually_played %}<i class="fas fa-check"></i>{% endif %}
@@ -176,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', () => {
             const matchId = parseInt(btn.getAttribute('data-match-id'), 10);
             const hasPinned = btn.getAttribute('data-has-pinned') === 'true';
-            // Invert current state: if any pinned -> unpin all, else pin all
+            // Invert current state: if any pinned -> unpin all, else pin all (with confirm)
             toggleMatchPin(matchId, !hasPinned);
         });
     });
@@ -192,50 +188,42 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function toggleMatchPin(matchId, pin) {
-    fetch('/planning/api/match/' + matchId + '/pin', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            match_id: matchId,
-            pinned: !!pin
+        const message = pin
+            ? `Weet je zeker dat je alle spelers wilt PINNEN voor wedstrijd #${matchId}?`
+            : `Weet je zeker dat je ALLE pins wilt verwijderen voor wedstrijd #${matchId}?`;
+        confirmDialog(message).then(ok => {
+        if (!ok) return;
+        fetch('/planning/api/match/' + matchId + '/pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ match_id: matchId, pinned: !!pin })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Fout: ' + data.message);
-        }
-    })
-    .catch(error => {
-        alert('Fout: ' + error.message);
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) { showToast('Actie uitgevoerd', 'success'); location.reload(); }
+            else { showToast('Fout: ' + data.message, 'danger'); }
+        })
+        .catch(error => { showToast('Fout: ' + error.message, 'danger'); });
     });
 }
 
 function toggleMatchPlayed(matchId, played) {
-    fetch('/planning/api/match/' + matchId + '/played', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            match_id: matchId,
-            played: !!played
+        const message = played
+            ? `Weet je zeker dat je wedstrijd #${matchId} wilt MARKEREN als gespeeld?`
+            : `Weet je zeker dat je wedstrijd #${matchId} als NIET gespeeld wilt markeren?`;
+        confirmDialog(message).then(ok => {
+        if (!ok) return;
+        fetch('/planning/api/match/' + matchId + '/played', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ match_id: matchId, played: !!played })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Fout: ' + data.message);
-        }
-    })
-    .catch(error => {
-        alert('Fout: ' + error.message);
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) { showToast('Actie uitgevoerd', 'success'); location.reload(); }
+            else { showToast('Fout: ' + data.message, 'danger'); }
+        })
+        .catch(error => { showToast('Fout: ' + error.message, 'danger'); });
     });
 }
 </script>

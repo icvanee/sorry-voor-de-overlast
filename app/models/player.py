@@ -1,4 +1,5 @@
 from app.models.database import get_db_connection
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class Player:
     def __init__(self, id=None, name=None, email=None, phone=None):
@@ -36,6 +37,61 @@ class Player:
         cursor.close()
         conn.close()
         return player
+
+    @staticmethod
+    def get_by_email(email):
+        """Get a player by email (case-insensitive)."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM players WHERE LOWER(email) = LOWER(%s)
+        ''', (email,))
+        player = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return player
+
+    @staticmethod
+    def set_password(player_id, raw_password, force_change=False):
+        """Set password hash and optionally enforce change on next login."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        hashed = generate_password_hash(raw_password)
+        cursor.execute('''
+            UPDATE players
+            SET password_hash = %s,
+                force_password_change = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (hashed, force_change, player_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    @staticmethod
+    def clear_force_change(player_id):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE players
+            SET force_password_change = false,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (player_id,))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    @staticmethod
+    def verify_password(player, raw_password) -> bool:
+        """Verify a raw password against the player's stored hash."""
+        ph = (player or {}).get('password_hash')
+        if not ph:
+            return False
+        try:
+            return check_password_hash(ph, raw_password)
+        except Exception:
+            return False
     
     @staticmethod
     def create(name, email=None, phone=None, role='speler', partner_id=None):

@@ -35,6 +35,16 @@ def login_required(f):
             flash('Log in om deze pagina te bekijken.', 'warning')
             # Preserve next URL for redirect after login
             return redirect(url_for('auth.login', next=request.path))
+        # Enforce password change if flagged, except on auth routes
+        path = request.path or ''
+        if path.startswith(('/auth/login', '/auth/change-password')):
+            return f(*args, **kwargs)
+        user = get_current_user()
+        if user and user.get('force_password_change'):
+            if _wants_json_response():
+                return jsonify({'success': False, 'error': 'Wachtwoord wijzigen vereist.'}), 403
+            flash('Wijzig eerst je wachtwoord om verder te gaan.', 'warning')
+            return redirect(url_for('auth.change_password', next=path))
         return f(*args, **kwargs)
     return wrapper
 

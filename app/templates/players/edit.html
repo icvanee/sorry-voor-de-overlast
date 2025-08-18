@@ -93,6 +93,14 @@
                        class="btn btn-outline-success">
                         <i class="fas fa-chart-bar"></i> Statistieken Bekijken
                     </a>
+                    <hr>
+                    <button type="button" class="btn btn-outline-warning" id="btnResetPassword">
+                        <i class="fas fa-user-lock"></i> Genereer tijdelijk wachtwoord
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btnSetPassword">
+                        <i class="fas fa-key"></i> Stel wachtwoord in…
+                    </button>
+                    <small class="text-muted">Na reset moet de speler bij volgende login een eigen wachtwoord kiezen.</small>
                 </div>
             </div>
         </div>
@@ -124,6 +132,47 @@ document.getElementById('partner_id').addEventListener('change', function() {
     const wrapper = document.getElementById('prefer_partner_wrapper');
     if (!wrapper) return;
     wrapper.style.display = partnerSelected ? 'block' : 'none';
+});
+
+// Password actions
+const btnReset = document.getElementById('btnResetPassword');
+const btnSet = document.getElementById('btnSetPassword');
+if (btnReset) btnReset.addEventListener('click', async function() {
+    if (!await confirmDialog('Tijdelijk wachtwoord genereren en forceren om te wijzigen?')) return;
+    btnReset.disabled = true; btnReset.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Bezig...';
+    try {
+    const res = await fetch("{{ url_for('players.reset_password', player_id=player.id) }}", { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Onbekende fout');
+        await navigator.clipboard.writeText(data.temporary_password);
+        showToast('Tijdelijk wachtwoord gekopieerd: ' + data.temporary_password, 'info');
+    } catch (e) {
+        console.error(e);
+        showToast('Kon tijdelijk wachtwoord niet genereren.', 'danger');
+    } finally {
+        btnReset.disabled = false; btnReset.innerHTML = '<i class="fas fa-user-lock"></i> Genereer tijdelijk wachtwoord';
+    }
+});
+if (btnSet) btnSet.addEventListener('click', async function() {
+    const pw = prompt('Nieuw wachtwoord (min. 8 tekens):');
+    if (!pw) return;
+    if (pw.length < 8) { showToast('Wachtwoord te kort (min. 8).', 'warning'); return; }
+    btnSet.disabled = true; btnSet.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Bezig...';
+    try {
+    const res = await fetch("{{ url_for('players.set_password', player_id=player.id) }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pw, force_change: true })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Onbekende fout');
+        showToast('Wachtwoord ingesteld. Speler moet dit wijzigen bij volgende login.', 'success');
+    } catch (e) {
+        console.error(e);
+        showToast('Kon wachtwoord niet instellen.', 'danger');
+    } finally {
+        btnSet.disabled = false; btnSet.innerHTML = '<i class="fas fa-key"></i> Stel wachtwoord in…';
+    }
 });
 </script>
 {% endblock %}

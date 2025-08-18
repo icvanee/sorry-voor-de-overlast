@@ -43,7 +43,11 @@
                    title="Ga naar mijn beschikbaarheid">
                     <i class="fas fa-user"></i> {{ current_user.name }}
                     <small class="text-light ms-1">({{ (current_user.role or 'speler')|capitalize }})</small>
+                    {% if current_user.force_password_change %}
+                        <span class="badge bg-warning text-dark ms-2"><i class="fas fa-key"></i> wijzig wachtwoord</span>
+                    {% endif %}
                 </a>
+                <a class="btn btn-sm btn-outline-light me-2" href="{{ url_for('auth.change_password') }}" title="Wachtwoord wijzigen"><i class="fas fa-key"></i></a>
                 <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.logout') }}">Logout</a>
                 {% else %}
                 <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.login') }}">Login</a>

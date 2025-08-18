@@ -53,6 +53,12 @@ def add_player():
             partner_id = int(partner_id) if partner_id else None
             # Create player (use named args to avoid param order issues)
             new_player_id = Player.create(name=name, role=role, partner_id=partner_id)
+            # Set default password and force change on next login
+            try:
+                Player.set_password(new_player_id, 'svdo@2025', force_change=True)
+            except Exception:
+                # Non-fatal; startup seeding will cover this
+                pass
             # If partner selected, set bidirectional link
             if partner_id:
                 Player.set_partner_bidirectional(new_player_id, partner_id)
@@ -211,3 +217,36 @@ def player_stats(player_id):
                            availability=availability,
                            history=history,
                            percent_played=int(percent_played))
+
+
+# Password management by captains
+@players.route('/<int:player_id>/password/reset', methods=['POST'])
+@roles_required('captain', 'reserve captain')
+def reset_password(player_id):
+    """Reset a player's password to a random temporary one and force change on next login.
+    Returns JSON with the temporary password so the captain can communicate it.
+    """
+    import secrets, string
+    player = Player.get_by_id(player_id)
+    if not player:
+        return jsonify({'success': False, 'error': 'Speler niet gevonden'}), 404
+    alphabet = string.ascii_letters + string.digits
+    temp = 'T' + ''.join(secrets.choice(alphabet) for _ in range(9)) + '!'
+    Player.set_password(player_id, temp, force_change=True)
+    return jsonify({'success': True, 'temporary_password': temp})
+
+
+@players.route('/<int:player_id>/password/set', methods=['POST'])
+@roles_required('captain', 'reserve captain')
+def set_password(player_id):
+    """Set a specific password and optionally force change on next login."""
+    data = request.get_json(silent=True) or {}
+    new_password = data.get('password') or request.form.get('password')
+    force_change = str(data.get('force_change') or request.form.get('force_change') or 'true').lower() in ('1','true','yes','on')
+    if not new_password or len(new_password) < 8:
+        return jsonify({'success': False, 'error': 'Wachtwoord minimaal 8 tekens.'}), 400
+    player = Player.get_by_id(player_id)
+    if not player:
+        return jsonify({'success': False, 'error': 'Speler niet gevonden'}), 404
+    Player.set_password(player_id, new_password, force_change=force_change)
+    return jsonify({'success': True})

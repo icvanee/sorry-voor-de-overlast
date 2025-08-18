@@ -28,6 +28,7 @@ def init_database():
                 email VARCHAR(255),
                 phone VARCHAR(20),
                 password_hash TEXT,
+                force_password_change BOOLEAN DEFAULT false,
                 role VARCHAR(50) DEFAULT 'speler',
                 partner_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
                 prefer_partner_together BOOLEAN DEFAULT true,
@@ -45,6 +46,12 @@ def init_database():
                     WHERE table_name='players' AND column_name='password_hash'
                 ) THEN
                     ALTER TABLE players ADD COLUMN password_hash TEXT;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='players' AND column_name='force_password_change'
+                ) THEN
+                    ALTER TABLE players ADD COLUMN force_password_change BOOLEAN DEFAULT false;
                 END IF;
             END$$;
         """)
@@ -155,6 +162,43 @@ def init_database():
         raise
     finally:
         cursor.close()
+        conn.close()
+
+def seed_default_passwords(default_password: str = 'svdo@2025'):
+    """Seed default passwords for any players missing a password.
+    Always safe to run at startup; only updates rows where password_hash IS NULL.
+    Also sets force_password_change = true so users must set a new password.
+    """
+    from werkzeug.security import generate_password_hash
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT COUNT(*) AS cnt FROM players WHERE password_hash IS NULL")
+        row = cur.fetchone()
+        missing = (row['cnt'] or 0) if row else 0
+        if missing > 0:
+            print(f"🔐 Seeding default passwords for {missing} player(s)...")
+            hashed = generate_password_hash(default_password)
+            cur.execute(
+                """
+                UPDATE players
+                SET password_hash = %s,
+                    force_password_change = true,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE password_hash IS NULL
+                """,
+                (hashed,)
+            )
+            conn.commit()
+            print("✅ Default passwords seeded.")
+        else:
+            print("Password seeding: no players missing a password.")
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error seeding default passwords: {e}")
+        raise
+    finally:
+        cur.close()
         conn.close()
 
 def setup_single_planning():

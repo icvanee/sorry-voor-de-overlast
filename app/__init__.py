@@ -13,9 +13,11 @@ def create_app():
             os.makedirs(data_dir)
     
     # Initialize database
-    from app.models.database import init_database
+    from app.models.database import init_database, seed_default_passwords
     with app.app_context():
         init_database()
+        # Seed default passwords for any players missing one
+        seed_default_passwords(default_password='svdo@2025')
 
     # Jinja filter for Dutch date formatting (dd-MM-yyyy)
     def date_nl(value):

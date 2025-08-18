@@ -248,8 +248,9 @@ class TeamBeheerScraper:
             
             print(f"Row {row_idx}: {cell_texts}")
             
-            # Skip header rows
-            if any(header in ' '.join(cell_texts).lower() for header in ['datum', 'wedstrijd', 'team', 'tijd', 'uitslag']):
+            # Skip header rows (look for the actual header labels, not generic words like 'team')
+            row_text_l = ' '.join(cell_texts).lower()
+            if ('datum' in row_text_l and ('thuis' in row_text_l or 'uit' in row_text_l or 'score' in row_text_l)):
                 return None
             
             # Try different column arrangements
@@ -268,6 +269,20 @@ class TeamBeheerScraper:
                 except:
                     pass
             
+            # Format 1b: Explicit NL table indexes (#, Datum, Thuisteam, Uitteam, Score)
+            if not match_data and len(cell_texts) >= 4:
+                try:
+                    datum = cell_texts[1]
+                    thuis = cell_texts[2]
+                    uit = cell_texts[3]
+                    # Skip 'Vrije week' rows
+                    if (datum.strip().lower() != 'vrije week' and
+                        thuis.strip().lower() != 'vrij' and
+                        self._is_valid_date(datum) and thuis and uit):
+                        match_data = self._create_match_data(cell_texts[0], datum, thuis, uit)
+                except:
+                    pass
+
             # Format 2: [datum, thuis, uit, tijd/uitslag]
             if not match_data and len(cell_texts) >= 3:
                 try:
@@ -340,18 +355,17 @@ class TeamBeheerScraper:
             return None
     
     def _is_valid_date(self, date_str):
-        """Check if string looks like a date"""
+        """Check if string contains a recognizable date pattern anywhere."""
         if not date_str:
             return False
-        
-        # Check for common date patterns
+        s = date_str.strip()
+        if s.lower() == 'vrij':
+            return False
         patterns = [
-            r'\d{1,2}[-/]\d{1,2}',          # dd-mm or dd/mm
-            r'\d{1,2}[-/]\d{1,2}[-/]\d{2,4}', # dd-mm-yyyy
-            r'\d{4}[-/]\d{1,2}[-/]\d{1,2}'    # yyyy-mm-dd
+            r'\d{1,2}[-/]\d{1,2}(?:[-/]\d{2,4})?',  # dd-mm, dd-mm-yy, dd-mm-yyyy
+            r'\d{4}[-/]\d{1,2}[-/]\d{1,2}'          # yyyy-mm-dd
         ]
-        
-        return any(re.match(pattern, date_str.strip()) for pattern in patterns)
+        return any(re.search(pattern, s) for pattern in patterns)
     
     def _create_match_data(self, match_number, date_str, home_team, away_team):
         """Create standardized match data"""
@@ -396,67 +410,43 @@ class TeamBeheerScraper:
             return None
     
     def _parse_date(self, date_str):
-        """Parse date string to YYYY-MM-DD format"""
+        """Parse date string to YYYY-MM-DD format; supports prefixes (e.g., 'di 08-10') and 2-digit years."""
         try:
-            if not date_str or date_str == 'Vrij':
+            if not date_str:
                 return None
-            
-            # Remove any extra whitespace
-            date_str = date_str.strip()
-            
-            # Handle various date formats
+            s = date_str.strip()
+            if s.lower() == 'vrij':
+                return None
+            # Extract the first date-like substring
+            m = re.search(r'(\d{1,2}[-/]\d{1,2}(?:[-/]\d{2,4})?|\d{4}[-/]\d{1,2}[-/]\d{1,2})', s)
+            if not m:
+                print(f"Could not find date in: {date_str}")
+                return None
+            token = m.group(0).replace('/', '-')
             current_year = datetime.now().year
-            
-            # Format: dd-mm-yyyy or dd/mm/yyyy
-            if re.match(r'\d{1,2}[-/]\d{1,2}[-/]\d{4}', date_str):
-                date_str = date_str.replace('/', '-')
-                day, month, year = date_str.split('-')
-                return f"{year}-{month.zfill(2)}-{day.zfill(2)}"
-            
-            # Format: dd-mm or dd/mm (assume current season)
-            elif re.match(r'\d{1,2}[-/]\d{1,2}$', date_str):
-                date_str = date_str.replace('/', '-')
-                day, month = date_str.split('-')
-                
-                # Determine year based on month (season runs from Aug to July)
-                month_int = int(month)
-                if month_int >= 8:  # August or later = current year
-                    year = current_year
-                else:  # Before August = next year
-                    year = current_year + 1
-                
-                return f"{year}-{month.zfill(2)}-{day.zfill(2)}"
-            
-            # Format: yyyy-mm-dd (already correct)
-            elif re.match(r'\d{4}-\d{1,2}-\d{1,2}', date_str):
-                parts = date_str.split('-')
-                return f"{parts[0]}-{parts[1].zfill(2)}-{parts[2].zfill(2)}"
-            
-            # Try to parse with datetime for other formats
-            else:
-                try:
-                    # Try common formats
-                    formats = ['%d-%m-%Y', '%d/%m/%Y', '%Y-%m-%d', '%d-%m', '%d/%m']
-                    for fmt in formats:
-                        try:
-                            parsed = datetime.strptime(date_str, fmt)
-                            if fmt in ['%d-%m', '%d/%m']:
-                                # Add year for short formats
-                                month = parsed.month
-                                if month >= 8:
-                                    year = current_year
-                                else:
-                                    year = current_year + 1
-                                parsed = parsed.replace(year=year)
-                            return parsed.strftime('%Y-%m-%d')
-                        except ValueError:
-                            continue
-                except:
-                    pass
-            
-            print(f"Could not parse date: {date_str}")
+
+            # yyyy-mm-dd
+            if re.match(r'^\d{4}-\d{1,2}-\d{1,2}$', token):
+                y, mo, d = token.split('-')
+                return f"{y}-{mo.zfill(2)}-{d.zfill(2)}"
+
+            # dd-mm-yy or dd-mm-yyyy
+            if re.match(r'^\d{1,2}-\d{1,2}-\d{2,4}$', token):
+                d, mo, y = token.split('-')
+                if len(y) == 2:
+                    y = str(2000 + int(y))
+                return f"{y}-{mo.zfill(2)}-{d.zfill(2)}"
+
+            # dd-mm (assume season Aug..Jul)
+            if re.match(r'^\d{1,2}-\d{1,2}$', token):
+                d, mo = token.split('-')
+                mo_int = int(mo)
+                year = current_year if mo_int >= 8 else current_year + 1
+                return f"{year}-{mo.zfill(2)}-{d.zfill(2)}"
+
+            print(f"Could not parse date token: {token} from {date_str}")
             return None
-            
+
         except Exception as e:
             print(f"Error parsing date {date_str}: {e}")
             return None

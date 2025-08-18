@@ -101,6 +101,20 @@ class Match:
             
             result = cursor.fetchone()
             match_id = result['id']
+
+            # Seed default availability as NOT available for all active players
+            # This ensures the system has explicit records and treats non-set as unavailable by default
+            try:
+                cursor.execute('''
+                    INSERT INTO player_availability (player_id, match_id, is_available, notes)
+                    SELECT p.id, %s, false, NULL
+                    FROM players p
+                    WHERE p.is_active = true
+                    ON CONFLICT (player_id, match_id) DO NOTHING
+                ''', (match_id,))
+            except Exception as se:
+                # Do not fail match creation if seeding availability has an issue; log and continue
+                print(f"Warning: could not seed default availability for match {match_id}: {se}")
             conn.commit()
             cursor.close()
             conn.close()

@@ -43,7 +43,7 @@
                                 {{ match.home_team }} vs {{ match.away_team }}
                             </h6>
                             <p class="card-text">
-                                <i class="fas fa-calendar"></i> {{ match.match_date }}<br>
+                                <i class="fas fa-calendar"></i> {{ match.match_date|date_nl }}<br>
                                 {% if match.is_home %}
                                     <i class="fas fa-home text-success"></i> Thuiswedstrijd
                                 {% else %}
@@ -87,7 +87,7 @@
                         {% for match in matches %}
                             <tr class="{% if match.is_home %}table-success{% else %}table-warning{% endif %}">
                                 <td>
-                                    <strong>{{ match.match_date }}</strong>
+                                    <strong>{{ match.match_date|date_nl }}</strong>
                                     {% if match.match_number %}
                                         <br><small class="text-muted">Ronde {{ match.match_number }}</small>
                                     {% endif %}

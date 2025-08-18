@@ -77,7 +77,7 @@
                             {% set players = match_data.players %}
                             <tr class="{% if match.is_home %}table-success{% else %}table-warning{% endif %}">
                                 <td>
-                                    <strong>{{ match.date.strftime('%d-%m-%Y') if match.date }}</strong>
+                                    <strong>{{ match.date|date_nl }}</strong>
                                 </td>
                                 <td>
                                     <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>

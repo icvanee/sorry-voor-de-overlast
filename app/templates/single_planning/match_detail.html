@@ -11,7 +11,7 @@
                 {{ match.home_team }} vs {{ match.away_team }}
             </h2>
             <p class="text-muted">
-                {{ match.match_date.strftime('%d-%m-%Y') if match.match_date }}
+                {{ match.match_date|date_nl }}
                 {% if match.is_home %}
                     <span class="badge bg-primary ms-2">THUIS</span>
                 {% else %}
@@ -158,7 +158,7 @@
                         <div class="col-md-6">
                             <dl class="row">
                 <dt class="col-sm-4">Datum:</dt>
-                <dd class="col-sm-8">{{ match.match_date.strftime('%d-%m-%Y') if match.match_date else 'Niet ingesteld' }}</dd>
+                <dd class="col-sm-8">{{ match.match_date|date_nl if match.match_date else 'Niet ingesteld' }}</dd>
                                 
                 <dt class="col-sm-4">Tijd:</dt>
                 <dd class="col-sm-8">{{ match.match_time.strftime('%H:%M') if match.match_time else 'Niet ingesteld' }}</dd>

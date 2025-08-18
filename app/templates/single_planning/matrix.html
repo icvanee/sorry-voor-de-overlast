@@ -108,7 +108,7 @@
                         <td class="sticky-column match-info clickable" data-href="{{ url_for('single_planning.match_detail', match_id=match.id) }}" title="Open wedstrijdplanning">
                             <div class="match-details">
                                 <strong>
-                                    {{ "%02d"|format(loop.index) }}. {{ match.match_date.strftime('%d/%m') if match.match_date else 'N.t.b.' }}
+                                    {{ "%02d"|format(loop.index) }}. {{ match.match_date|date_nl if match.match_date else 'N.t.b.' }}
                                     {% if match_player_count > 4 %}
                                         <span class="badge bg-warning text-dark ms-1" title="Meer dan 4 spelers - handmatig toegestaan maar let op!">
                                             <i class="fas fa-exclamation-triangle"></i> {{ match_player_count }}

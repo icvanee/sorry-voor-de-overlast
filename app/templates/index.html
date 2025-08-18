@@ -151,7 +151,7 @@
                                         {% endif %}
                                         {{ match.home_team }} vs {{ match.away_team }}
                                     </h6>
-                                    <small>{{ match.match_date }}</small>
+                                    <small>{{ match.match_date|date_nl }}</small>
                                 </div>
                                 <p class="mb-2">
                                     {% if match.is_home %}

@@ -16,6 +16,17 @@ def create_app():
     from app.models.database import init_database
     with app.app_context():
         init_database()
+
+    # Jinja filter for Dutch date formatting (dd-MM-yyyy)
+    def date_nl(value):
+        try:
+            if hasattr(value, 'strftime'):
+                return value.strftime('%d-%m-%Y')
+            # strings pass-through
+            return value
+        except Exception:
+            return value
+    app.jinja_env.filters['date_nl'] = date_nl
     
     # Register blueprints
     from app.routes.main import main

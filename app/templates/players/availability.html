@@ -79,7 +79,7 @@
                                 {% set availability = availability_data.get(match.id) %}
                                 <tr class="{% if match.is_home %}table-success{% else %}table-warning{% endif %}">
                                     <td>
-                                        <strong>{{ match.match_date }}</strong>
+                                        <strong>{{ match.match_date|date_nl }}</strong>
                                         {% if match.match_time %}
                                             <br><small class="text-muted">{{ match.match_time }}</small>
                                         {% endif %}

@@ -99,8 +99,10 @@
                                                 <br><small class="text-muted">{{ match.match_time }}</small>
                                             {% endif %}
                                         </td>
-                                        <td>
-                                            <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
+                                        <td class="position-relative">
+                                            <a href="{{ url_for('single_planning.match_detail', match_id=match.id) }}" class="text-decoration-none">
+                                                <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
+                                            </a>
                                             {% if match.location %}
                                                 <br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ match.location }}</small>
                                             {% endif %}
@@ -169,8 +171,10 @@
                                 <div class="d-flex justify-content-between">
                                     <div class="pe-2">
                                         <div class="match-title"><strong>{{ match.match_date|date_nl }}</strong>{% if match.match_time %} <small class="text-muted">{{ match.match_time }}</small>{% endif %}</div>
-                                        <div class="match-subtitle text-muted small">
-                                            <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
+                                        <div class="match-subtitle small">
+                                            <a href="{{ url_for('single_planning.match_detail', match_id=match.id) }}" class="text-decoration-none">
+                                                <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
+                                            </a>
                                         </div>
                                         {% if match.location %}
                                             <div class="text-muted small"><i class="fas fa-map-marker-alt"></i> {{ match.location }}</div>

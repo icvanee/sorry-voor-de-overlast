@@ -24,7 +24,7 @@
             <button class="btn btn-sm btn-info" onclick="exportToCSV()">
                 <i class="fas fa-file-excel"></i> CSV Export
             </button>
-            <button class="btn btn-sm btn-secondary" onclick="window.print()">
+            <button class="btn btn-sm btn-secondary" onclick="printMatrix()">
                 <i class="fas fa-print"></i> Afdrukken
             </button>
         </div>
@@ -474,19 +474,76 @@
 
 /* Print styles */
 @media print {
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+
+    html, body {
+        background: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding-bottom: 0 !important;
+    }
+
+    /* Hide non-matrix UI elements */
+    nav.navbar,
+    .sidebar,
+    .version-footer,
     .btn-toolbar,
-    .card:not(:has(.matrix-table)),
-    .card-header:not(:has(.matrix-table)) {
+    .card.mt-4, /* legend card */
+    .alert,
+    .container-fluid > .row > main > :not(.card):not(style):not(script) {
         display: none !important;
     }
-    
-    .matrix-table {
-        font-size: 0.6rem;
+
+    /* Remove grid offsets and make main full width */
+    .container, .container-fluid, .row, main {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
     }
-    
-    .player-assigned {
-        background-color: #000 !important;
-        color: white !important;
+    main.col-md-9, main.col-lg-10 {
+        flex: 0 0 100% !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    .ms-sm-auto { margin-left: 0 !important; }
+
+    /* Only keep the card that contains the matrix table */
+    .card:not(:has(.matrix-table)) {
+        display: none !important;
+    }
+    .card:has(.matrix-table) .card-header,
+    .card:has(.matrix-table) .card-body {
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+    }
+
+    /* Make table flow normally for print */
+    .table-responsive {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+    .sticky-top,
+    .sticky-bottom,
+    .sticky-column {
+        position: static !important;
+    }
+
+    /* Expand matrix to full width */
+    #planningMatrix {
+        width: 100% !important;
+        table-layout: auto !important;
+    }
+
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+
+    .matrix-table {
+        font-size: 9pt;
     }
 }
 
@@ -569,6 +626,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Print just the matrix cleanly
+function printMatrix() {
+    // Optionally add a temporary class if we need special scoping
+    document.body.classList.add('matrix-printing');
+    const handleAfterPrint = () => {
+        document.body.classList.remove('matrix-printing');
+        window.removeEventListener('afterprint', handleAfterPrint);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    window.print();
+}
 
 // Cell editing functionality for Single Planning System with 3-state cycle
 function toggleCell(cell, playerId, matchId) {

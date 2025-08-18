@@ -34,7 +34,9 @@ class SinglePlanning:
                 m.home_team,
                 m.away_team,
                 m.is_home,
-                m.is_played
+                m.is_played,
+                m.location,
+                m.is_cup_match
             FROM match_planning mp
             JOIN players p ON mp.player_id = p.id
             JOIN matches m ON mp.match_id = m.id

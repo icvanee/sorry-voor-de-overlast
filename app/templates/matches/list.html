@@ -102,7 +102,7 @@
                                     <div class="d-flex flex-wrap gap-1 mt-1">
                                         {% for p in players %}
                                             {% set is_me = current_user and (p.player_id == current_user.id) %}
-                                            <span class="badge {% if p.is_pinned %}bg-warning{% elif p.actually_played %}bg-success{% else %}bg-light text-dark{% endif %} {% if is_me %}border border-2 border-primary fw-semibold{% endif %}"
+                                            <span class="badge {% if p.is_pinned %}bg-warning{% elif p.actually_played %}bg-success{% else %}bg-light text-dark{% endif %} {% if is_me %}badge-me fw-semibold{% endif %}"
                                                   {% if is_me %}title="Dit ben jij" aria-label="Jouw naam"{% endif %}>
                                                 {{ p.name }}
                                                 {% if p.is_pinned %}<i class="fas fa-thumbtack"></i>{% endif %}

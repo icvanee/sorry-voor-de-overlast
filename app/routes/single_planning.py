@@ -31,7 +31,9 @@ def dashboard():
                         'home_team': row['home_team'],
                         'away_team': row['away_team'],
                         'is_home': row['is_home'],
-                        'is_played': row['is_played']
+                        'is_played': row['is_played'],
+                        'location': row.get('location'),
+                        'is_cup_match': row.get('is_cup_match')
                     },
                     'players': []
                 }

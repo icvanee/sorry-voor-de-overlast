@@ -41,8 +41,8 @@
                             {% for player in all_players %}
                                 {% if player is mapping and player.get('is_active', True) and player.get('id') %}
                                     {% set stats = player_stats.get(player['id'], {}) %}
-                                    <tr>
-                                        <td><strong>{{ player['name'] }}</strong></td>
+                                    <tr class="clickable-row" data-href="{{ url_for('players.player_stats', player_id=player['id']) }}" style="cursor: pointer;">
+                                        <td><strong><a href="{{ url_for('players.player_stats', player_id=player['id']) }}" class="text-decoration-none">{{ player['name'] }}</a></strong></td>
                                         <td><span class="badge bg-primary">{{ stats.matches_planned or 0 }}</span></td>
                                         <td><span class="badge bg-success">{{ stats.home_matches or 0 }}</span></td>
                                         <td><span class="badge bg-warning">{{ stats.away_matches or 0 }}</span></td>
@@ -105,6 +105,14 @@
 <script>
 // Dashboard interactions: toggle match pin and played state
 document.addEventListener('DOMContentLoaded', function() {
+    // Clickable player rows -> stats
+    document.querySelectorAll('tr.clickable-row').forEach(row => {
+        row.addEventListener('click', (ev) => {
+            if (ev.target.closest('a, button, .btn')) return;
+            const href = row.getAttribute('data-href');
+            if (href) window.location.href = href;
+        });
+    });
     // Toggle pin buttons (match component classes)
     document.querySelectorAll('.btn-pin-all').forEach(btn => {
         btn.addEventListener('click', () => {

@@ -33,14 +33,14 @@
                             <th>Gepland</th>
                             <th>Gespeeld</th>
                             <th>Status</th>
-                            <th>Acties</th>
+                            
                         </tr>
                     </thead>
                     <tbody>
                         {% for player in players %}
-                            <tr>
+                            <tr class="position-relative clickable-row" data-href="{{ url_for('players.player_stats', player_id=player.id) }}" style="cursor: pointer;">
                                 <td>
-                                    <strong>{{ player.name }}</strong>
+                                    <strong><a href="{{ url_for('players.player_stats', player_id=player.id) }}" class="text-decoration-none">{{ player.name }}</a></strong>
                                 </td>
                                 <td>
                                     {% if player.role %}
@@ -67,14 +67,14 @@
                                                 <span class="me-2">
                                                     <strong>{{ available }}/{{ total }}</strong>
                                                 </span>
-                                                <div class="progress flex-fill" style="height: 20px; width: 80px;">
+                        <div class="progress flex-fill" style="height: 20px; width: 80px;">
                                                     <div class="progress-bar 
                                                         {% if percentage >= 75 %}bg-success
                                                         {% elif percentage >= 50 %}bg-warning
                                                         {% else %}bg-danger
                                                         {% endif %}"
                                                         role="progressbar" 
-                                                        style="width: {{ percentage }}%"
+                            data-width="{{ percentage }}"
                                                         aria-valuenow="{{ percentage }}" 
                                                         aria-valuemin="0" 
                                                         aria-valuemax="100">
@@ -145,22 +145,6 @@
                                         <span class="badge bg-secondary">Inactief</span>
                                     {% endif %}
                                 </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{{ url_for('players.edit_player', player_id=player.id) }}" 
-                                           class="btn btn-outline-primary" title="Bewerken">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{{ url_for('players.player_availability', player_id=player.id) }}" 
-                                           class="btn btn-outline-info" title="Beschikbaarheid">
-                                            <i class="fas fa-calendar-check"></i>
-                                        </a>
-                                        <a href="{{ url_for('players.player_stats', player_id=player.id) }}" 
-                                           class="btn btn-outline-success" title="Statistieken">
-                                            <i class="fas fa-chart-bar"></i>
-                                        </a>
-                                    </div>
-                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -190,7 +174,7 @@
                 <div class="row g-2">
                     {% for player in players %}
                         <div class="col-12">
-                            <div class="neo-card shadow-sm">
+                            <div class="neo-card shadow-sm position-relative">
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div>
@@ -228,13 +212,13 @@
                                             {% endif %}
                                         </div>
                                         {% if player.availability_stats and (player.availability_stats.total_matches or 0) > 0 %}
-                                            <div class="progress" style="height: 8px;">
+                        <div class="progress" style="height: 8px;">
                                                 <div class="progress-bar 
                                                     {% if percentage >= 75 %}bg-success
                                                     {% elif percentage >= 50 %}bg-warning
                                                     {% else %}bg-danger
                                                     {% endif %}"
-                                                    role="progressbar" style="width: {{ percentage }}%" aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                            role="progressbar" data-width="{{ percentage }}" aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
                                                 </div>
                                             </div>
                                         {% endif %}
@@ -253,17 +237,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="mt-3 btn-group w-100" role="group">
-                                        <a href="{{ url_for('players.edit_player', player_id=player.id) }}" class="btn btn-outline-primary">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{{ url_for('players.player_availability', player_id=player.id) }}" class="btn btn-outline-info">
-                                            <i class="fas fa-calendar-check"></i>
-                                        </a>
-                                        <a href="{{ url_for('players.player_stats', player_id=player.id) }}" class="btn btn-outline-success">
-                                            <i class="fas fa-chart-bar"></i>
-                                        </a>
-                                    </div>
+                                    <a href="{{ url_for('players.player_stats', player_id=player.id) }}" class="stretched-link" aria-label="Open statistieken"></a>
                                 </div>
                             </div>
                         </div>
@@ -318,4 +292,23 @@
     </div>
     </div>
 
+{% block scripts %}{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize progress bars from data-width to avoid templating in style attributes
+    document.querySelectorAll('.progress-bar[data-width]').forEach(el => {
+        const w = el.getAttribute('data-width');
+        if (w !== null) el.style.width = `${w}%`;
+    });
+    // Make table rows clickable to stats
+    document.querySelectorAll('tr.clickable-row').forEach(row => {
+        row.addEventListener('click', (ev) => {
+            if (ev.target.closest('a, button, .btn')) return; // let actual links/buttons work
+            const href = row.getAttribute('data-href');
+            if (href) window.location.href = href;
+        });
+    });
+});
+</script>
+{% endblock %}
 {% endblock %}

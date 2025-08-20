@@ -230,6 +230,60 @@ def player_stats(player_id):
         if av:
             availability_data[m['id']] = av
 
+    # For overview tab: list matches this player is planned to play (upcoming)
+    planning_rows = SinglePlanning.get_planning() or []
+    planning_by_match = {}
+    for row in planning_rows:
+        mid = row.get('match_id') or row.get('match_id'.upper()) or row.get('match_id'.lower())
+        if mid is None:
+            continue
+        planning_by_match.setdefault(mid, []).append({
+            'player_id': row.get('player_id'),
+            'player_name': row.get('player_name'),
+            'is_pinned': row.get('is_pinned'),
+            'actually_played': row.get('actually_played')
+        })
+
+    # Collect unique matches for this player
+    from datetime import date, datetime
+    today = date.today()
+    player_planned_matches = {}
+    for row in planning_rows:
+        if row.get('player_id') != player_id:
+            continue
+        mid = row.get('match_id')
+        if mid not in player_planned_matches:
+            # Normalize date
+            mdate = row.get('match_date')
+            try:
+                if isinstance(mdate, str):
+                    mdate_parsed = datetime.fromisoformat(mdate).date()
+                else:
+                    mdate_parsed = mdate
+            except Exception:
+                mdate_parsed = None
+            player_planned_matches[mid] = {
+                'id': mid,
+                'home_team': row.get('home_team'),
+                'away_team': row.get('away_team'),
+                'match_date': mdate_parsed or row.get('match_date'),
+                'is_home': row.get('is_home'),
+                'is_played': row.get('is_played'),
+                'location': row.get('location'),
+                'is_cup_match': row.get('is_cup_match')
+            }
+    # Filter upcoming (not played and date >= today if date available)
+    def _is_upcoming(m):
+        if m.get('is_played'):
+            return False
+        md = m.get('match_date')
+        try:
+            return (md is None) or (md >= today)
+        except Exception:
+            return True
+    planned_upcoming = [m for m in player_planned_matches.values() if _is_upcoming(m)]
+    planned_upcoming.sort(key=lambda x: (x.get('match_date') or date.max, x['id']))
+
     return render_template('players/stats.html', 
                            player=player, 
                            sp_stats=sp_stats,
@@ -238,7 +292,9 @@ def player_stats(player_id):
                            percent_played=int(percent_played),
                            partner_name=partner_name,
                            matches=matches,
-                           availability_data=availability_data)
+                           availability_data=availability_data,
+                           player_planned_matches=planned_upcoming,
+                           planning_by_match=planning_by_match)
 
 
 # Password management by captains

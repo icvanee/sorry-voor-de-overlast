@@ -19,7 +19,7 @@ def _build_matrix_data():
 
     # Matches
     cursor.execute('''
-        SELECT id, match_date, home_team, away_team, is_home, round_name, is_played, is_cup_match
+        SELECT id, match_date, home_team, away_team, is_home, is_played, is_cup_match
         FROM matches 
         ORDER BY match_date, id
     ''')

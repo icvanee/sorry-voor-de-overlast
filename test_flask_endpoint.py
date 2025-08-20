@@ -20,13 +20,18 @@ class FlaskTestServer:
     def start(self):
         """Start Flask server in background"""
         print("🚀 Starting Flask test server...")
-        
-        def run_server():
-            import os
-            os.system("cd /Users/vaneeic/Source/Private/sorry-voor-de-overlast && source venv/bin/activate && python run.py")
-        
-        self.process = Process(target=run_server)
-        self.process.start()
+        # Start using the current Python interpreter to avoid pickling issues with multiprocessing
+        try:
+            self.process = subprocess.Popen(
+                [sys.executable, "run.py"],
+                cwd="/Users/vaneeic/Source/Private/sorry-voor-de-overlast",
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
+            )
+        except Exception as e:
+            print(f"   ❌ Failed to spawn server process: {e}")
+            self.process = None
+            return False
         
         # Wait for server to start
         max_attempts = 10
@@ -45,12 +50,18 @@ class FlaskTestServer:
     
     def stop(self):
         """Stop Flask server"""
-        if self.process:
-            print("🛑 Stopping Flask test server...")
+        print("🛑 Stopping Flask test server...")
+        if not self.process:
+            return
+        try:
+            # Try graceful terminate
             self.process.terminate()
-            self.process.join(timeout=5)
-            if self.process.is_alive():
+            try:
+                self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
                 self.process.kill()
+        except Exception as e:
+            print(f"   ⚠️  Error stopping process: {e}")
 
 def test_availability_endpoint():
     print("🧪 Test Flask Availability Endpoint - Issue #4")

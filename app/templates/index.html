@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 
+{% block title %}Sorry voor de overlast{% endblock %}
 {% block content %}
 <style>
 /* Homepage-only: tint upcoming match rows by location */
@@ -7,14 +8,7 @@
 .home-upcoming .list-group-item.away { background-color: #fff3cd; /* bootstrap table-warning */ }
 </style>
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Teamplanning Dashboard</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <a href="{{ url_for('main.import_matches') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-download"></i> Import Wedstrijden
-            </a>
-        </div>
-    </div>
+    <h1 class="h2">Sorry voor de overlast</h1>
 </div>
 
 <!-- Quick Stats (Desktop only) -->
@@ -90,42 +84,7 @@
 
 <!-- Team Members + Upcoming (Desktop) -->
 <div class="row d-none d-md-flex">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Team Leden</h5>
-                <a href="{{ url_for('players.list_players') }}" class="btn btn-sm btn-outline-primary">
-                    Bekijk Alle Spelers
-                </a>
-            </div>
-            <div class="card-body">
-                {% if players %}
-                    <div class="list-group list-group-flush">
-                        {% for player in players %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>{{ player.name }}</strong>
-                                    {% if player.role %}
-                                        <span class="badge bg-secondary">{{ player.role }}</span>
-                                    {% endif %}
-                                    {% if player.partner_name %}
-                                        <small class="text-muted">(Partner: {{ player.partner_name }})</small>
-                                    {% endif %}
-                                </div>
-                                <a href="{{ url_for('players.player_availability', player_id=player.id) }}" 
-                                   class="btn btn-sm btn-outline-secondary">
-                                    Beschikbaarheid
-                                </a>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="text-muted">Geen spelers gevonden. <a href="{{ url_for('players.add_player') }}">Voeg een speler toe</a>.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
+    <!-- Upcoming Matches LEFT -->
     <div class="col-md-6">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -183,7 +142,43 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-muted">Geen aankomende wedstrijden. <a href="{{ url_for('main.import_matches') }}">Importeer wedstrijden</a>.</p>
+                    <p class="text-muted">Geen aankomende wedstrijden.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <!-- Team Members RIGHT -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Team Leden</h5>
+                <a href="{{ url_for('players.list_players') }}" class="btn btn-sm btn-outline-primary">
+                    Bekijk Alle Spelers
+                </a>
+            </div>
+            <div class="card-body">
+                {% if players %}
+                    <div class="list-group list-group-flush">
+                        {% for player in players %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ player.name }}</strong>
+                                    {% if player.role %}
+                                        <span class="badge bg-secondary">{{ player.role }}</span>
+                                    {% endif %}
+                                    {% if player.partner_name %}
+                                        <small class="text-muted">(Partner: {{ player.partner_name }})</small>
+                                    {% endif %}
+                                </div>
+                                <a href="{{ url_for('players.player_availability', player_id=player.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary">
+                                    Beschikbaarheid
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">Geen spelers gevonden. <a href="{{ url_for('players.add_player') }}">Voeg een speler toe</a>.</p>
                 {% endif %}
             </div>
         </div>

@@ -25,6 +25,7 @@ body { padding-bottom: 40px; }
 .neo-card { border-radius: 20px; background: #fff; box-shadow: 0 12px 24px rgba(0,0,0,.08); overflow: hidden; border: 1px solid rgba(0,0,0,.05); }
 .neo-header { background: linear-gradient(135deg, #6f42c1 0%, #6f8cf8 50%, #9b59d1 100%); color: #fff; padding: 18px 20px; position: relative; }
 .neo-header .avatar { width: 64px; height: 64px; border-radius: 14px; overflow: hidden; border: 3px solid rgba(255,255,255,.7); background: linear-gradient(135deg, #c8d6ff, #e9d3ff); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #3d2c60; }
+.neo-header .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .neo-tabs { display: flex; gap: 16px; padding: 10px 16px; border-bottom: 1px solid #eee; background: #fafbfc; }
 .neo-tabs .tab { font-weight: 600; color: #7a7f89; cursor: default; }
 .neo-tabs .tab.active { color: #3b2b5f; position: relative; }

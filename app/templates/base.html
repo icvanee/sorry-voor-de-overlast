@@ -18,9 +18,9 @@
             <div class="navbar-nav ms-auto align-items-center flex-row gap-2">
                 <span class="navbar-text me-3 season-text">Seizoen 2025-2026 | 4A</span>
                 {% if current_user %}
-                <a class="navbar-text me-2 text-white text-decoration-none" 
-                   href="{{ url_for('players.player_availability', player_id=current_user.id) }}" 
-                   title="Ga naar mijn beschikbaarheid">
+                     <a class="navbar-text me-2 text-white text-decoration-none" 
+                         href="{{ url_for('players.player_stats', player_id=current_user.id) }}" 
+                         title="Ga naar mijn statistieken">
                     <i class="fas fa-user"></i> {{ current_user.name }}
                     <small class="text-light ms-1">({{ (current_user.role or 'speler')|capitalize }})</small>
                     {% if current_user.force_password_change %}

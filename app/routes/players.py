@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
+import os
 from app.utils.auth import login_required, roles_required, get_current_user
 from app.models.player import Player
 from app.models.match import Match
@@ -284,6 +285,18 @@ def player_stats(player_id):
     planned_upcoming = [m for m in player_planned_matches.values() if _is_upcoming(m)]
     planned_upcoming.sort(key=lambda x: (x.get('match_date') or date.max, x['id']))
 
+    # Determine avatar image: static/<first_name>.jpg if present
+    avatar_url = None
+    try:
+        first_name = (player.get('name') or '').strip().split(' ')[0].strip().lower()
+        if first_name:
+            candidate = f"{first_name}.jpg"
+            fs_path = os.path.join(current_app.root_path, 'static', candidate)
+            if os.path.exists(fs_path):
+                avatar_url = url_for('static', filename=candidate)
+    except Exception:
+        avatar_url = None
+
     return render_template('players/stats.html', 
                            player=player, 
                            sp_stats=sp_stats,
@@ -294,7 +307,8 @@ def player_stats(player_id):
                            matches=matches,
                            availability_data=availability_data,
                            player_planned_matches=planned_upcoming,
-                           planning_by_match=planning_by_match)
+                           planning_by_match=planning_by_match,
+                           avatar_url=avatar_url)
 
 
 # Password management by captains

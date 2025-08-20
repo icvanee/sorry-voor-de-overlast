@@ -24,7 +24,13 @@
 
 <div class="neo-card mb-4">
   <div class="neo-header d-flex align-items-center gap-3">
-    <div class="avatar">{{ player.name[:2]|upper }}</div>
+    <div class="avatar">
+      {% if avatar_url %}
+        <img src="{{ avatar_url }}" alt="{{ player.name }}" class="img-fluid w-100 h-100 object-fit-cover" />
+      {% else %}
+        {{ player.name[:2]|upper }}
+      {% endif %}
+    </div>
     <div>
       <div class="fw-bold fs-5">{{ player.name }}</div>
       <div class="neo-meta">
@@ -35,13 +41,13 @@
   </div>
 
   <div class="neo-tabs" id="playerTabs">
-    <div class="tab" data-tab="overview">Overzicht</div>
-    <div class="tab active" data-tab="stats">Stats</div>
+    <div class="tab active" data-tab="overview">Overzicht</div>
+    <div class="tab" data-tab="stats">Stats</div>
     <div class="tab" data-tab="availability">Beschikbaarheid</div>
   </div>
 
   <!-- Overview section (compact) -->
-  <div class="neo-section tab-section d-none" data-section="overview">
+  <div class="neo-section tab-section" data-section="overview">
     <div class="neo-kpi">
       <div class="item">
         <div class="label">Totaal wedstrijden</div>
@@ -110,7 +116,7 @@
   </div>
 
   <!-- Stats section (default) -->
-  <div class="neo-section tab-section" data-section="stats">
+  <div class="neo-section tab-section d-none" data-section="stats">
     <div class="neo-kpi">
       <div class="item">
         <div class="label">Gepland</div>

@@ -132,56 +132,50 @@ def _build_matrix_data():
 def dashboard():
     """Main dashboard for single planning system."""
     try:
-        # Get all planning data
-        planning_data = SinglePlanning.get_planning()
-        
-        # Group planning by match
-        matches = {}
-        for row in planning_data:
-            match_id = row['match_id']
-            if match_id not in matches:
-                matches[match_id] = {
-                    'match': {
-                        'id': match_id,
-                        'date': row['match_date'],
-                        'home_team': row['home_team'],
-                        'away_team': row['away_team'],
-                        'is_home': row['is_home'],
-                        'is_played': row['is_played'],
-                        'location': row.get('location'),
-                        'is_cup_match': row.get('is_cup_match')
-                    },
-                    'players': []
-                }
-            
-            matches[match_id]['players'].append({
-                'id': row['player_id'],
+        # Haal alle wedstrijden op zoals op de wedstrijden-pagina
+        all_matches = Match.get_all()
+        planning = SinglePlanning.get_planning()
+        planning_by_match = {}
+        for row in planning:
+            mid = row['match_id']
+            if mid not in planning_by_match:
+                planning_by_match[mid] = []
+            planning_by_match[mid].append({
+                'player_id': row['player_id'],
                 'name': row['player_name'],
-                'role': row['role'],
-                'is_pinned': row['is_pinned'],
-                'actually_played': row['actually_played']
+                'is_pinned': row.get('is_pinned', False),
+                'actually_played': row.get('actually_played', False),
+                'role': row.get('role', '')
             })
-        
-        # Get player statistics
+
+        # Geef matches als lijst van match dicts mee, net als op wedstrijden-pagina
+        matches = list(all_matches)
+
+        # Spelers en statistieken
         all_players = Player.get_all()
         player_stats = {}
         for player in all_players:
             if player.get('is_active', True):
                 player_stats[player['id']] = SinglePlanning.get_player_stats(player['id'])
-        
+
+        # Bepaal aantal gespeelde wedstrijden
+        played_count = sum(1 for m in matches if m.get('is_played'))
+
         return render_template('single_planning/dashboard.html', 
                              matches=matches, 
                              player_stats=player_stats,
-                             all_players=all_players)
-    
+                             all_players=all_players,
+                             planning_by_match=planning_by_match,
+                             played_count=played_count)
     except Exception as e:
         flash(f'Error loading planning dashboard: {str(e)}', 'error')
         return render_template('single_planning/dashboard.html', 
                              matches={}, 
                              player_stats={},
-                             all_players=[])
+                             all_players=[],
+                             planning_by_match={},
+                             played_count=0)
 
-@single_planning.route('/match/<int:match_id>')
 @single_planning.route('/match/<int:match_id>')
 @login_required
 def match_detail(match_id):

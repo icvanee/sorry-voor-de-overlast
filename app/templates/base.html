@@ -103,32 +103,13 @@
                     
                     <ul class="nav flex-column mb-2">
                         {% if has_role('captain', 'reserve captain') %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.import_matches') }}">
-                                <i class="fas fa-download"></i> Import Wedstrijden
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.import_players') }}">
-                                <i class="fas fa-users"></i> Import Spelers
-                            </a>
-                        </li>
+                        <!-- Removed Import links from menu; accessible via pagina's zelf -->
                         {% endif %}
                     </ul>
                     
                     <hr>
                     
-                    <ul class="nav flex-column mb-2">
-                        {% if has_role('captain', 'reserve captain') %}
-                        <li class="nav-item">
-                            <form method="POST" action="{{ url_for('main.clear_all_matches') }}" onsubmit="return confirm('⚠️ Dit verwijdert ALLE wedstrijden en planning! Zeker weten?');" style="margin: 0;">
-                                <button type="submit" class="nav-link btn btn-link text-danger p-2" style="border: none; background: none; width: 100%; text-align: left;">
-                                    <i class="fas fa-trash"></i> Clear All Matches
-                                </button>
-                            </form>
-                        </li>
-                        {% endif %}
-                    </ul>
+                    <!-- Removed 'Clear All Matches' from menu per request -->
                 </div>
             </nav>
 

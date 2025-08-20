@@ -1,0 +1,45 @@
+/* Neo UI shared styles */
+.team-header { background: linear-gradient(135deg, #6f42c1, #dc3545 ); color: white; }
+.sidebar { min-height: 100vh; background-color: #f8f9fa; }
+.nav-link.active { background-color: #dc3545; color: white; }
+.card-stat { border-left: 4px solid #dc3545; }
+.partner-badge { background-color: #6f42c1; }
+/* Reserve space for fixed footer */
+body { padding-bottom: 40px; }
+.team-header.sticky-top { z-index: 1030; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.version-footer { background-color: #f8f9fa; border-top: 1px solid #dee2e6; font-size: 0.85rem; color: #6c757d; }
+/* Highlight current user's badge */
+.badge-me { background-color: rgba(121, 207, 249, 1) !important; border: 2px solid #0d6efd !important; color: #0b2239 !important; }
+/* Compact header on mobile */
+@media (max-width: 767.98px) {
+  .navbar.team-header { padding-top: .25rem; padding-bottom: .25rem; }
+  .navbar.team-header .container-fluid { padding-left: .5rem; padding-right: .5rem; }
+  .navbar.team-header .navbar-brand img { height: 32px !important; }
+  .navbar.team-header .season-text { display: none !important; }
+  .navbar.team-header .navbar-text small { display: none !important; }
+  .navbar.team-header .pw-badge { display: none !important; }
+  .navbar.team-header .navbar-nav .btn { padding: .2rem .45rem; line-height: 1.1; }
+  .navbar.team-header .navbar-text { font-size: .95rem; }
+}
+/* Modern card UI helpers */
+.neo-card { border-radius: 20px; background: #fff; box-shadow: 0 12px 24px rgba(0,0,0,.08); overflow: hidden; border: 1px solid rgba(0,0,0,.05); }
+.neo-header { background: linear-gradient(135deg, #6f42c1 0%, #6f8cf8 50%, #9b59d1 100%); color: #fff; padding: 18px 20px; position: relative; }
+.neo-header .avatar { width: 64px; height: 64px; border-radius: 14px; overflow: hidden; border: 3px solid rgba(255,255,255,.7); background: linear-gradient(135deg, #c8d6ff, #e9d3ff); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #3d2c60; }
+.neo-tabs { display: flex; gap: 16px; padding: 10px 16px; border-bottom: 1px solid #eee; background: #fafbfc; }
+.neo-tabs .tab { font-weight: 600; color: #7a7f89; cursor: default; }
+.neo-tabs .tab.active { color: #3b2b5f; position: relative; }
+.neo-tabs .tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -10px; height: 3px; background: #6f42c1; border-radius: 2px; }
+.neo-section { padding: 16px; }
+.neo-kpi { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 10px; }
+.neo-kpi .item { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 12px; }
+.neo-kpi .label { color: #6b7280; font-weight: 600; font-size: .9rem; }
+.neo-kpi .value { font-size: 1.5rem; font-weight: 800; }
+.neo-kpi .sub { font-size: .85rem; color: #10b981; font-weight: 700; }
+.neo-progress { height: 10px; background: #f1f3f5; border-radius: 10px; overflow: hidden; }
+.neo-progress .fill { height: 100%; background: linear-gradient(90deg, #a78bfa, #7c3aed 60%, #5b21b6); border-radius: 10px; }
+.neo-meta { display:flex; gap:20px; align-items:center; color:#6b7280; font-size:.85rem; }
+/* Ensure subtitle text is readable on gradient header */
+.neo-header .neo-meta { color: rgba(255,255,255,.9); }
+/* Homepage enhancements */
+.home-upcoming .list-group-item.home { background-color: #d1e7dd; }
+.home-upcoming .list-group-item.away { background-color: #fff3cd; }

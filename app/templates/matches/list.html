@@ -24,8 +24,8 @@
 
 <!-- Upcoming Matches -->
 {% if upcoming_matches %}
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
+<div class="neo-card mb-4">
+    <div class="neo-header">
         <h5 class="mb-0">
             <i class="fas fa-clock"></i> Aankomende Wedstrijden
         </h5>
@@ -34,7 +34,7 @@
         <div class="row">
             {% for match in upcoming_matches[:3] %}
                 <div class="col-md-4 mb-3">
-                    <div class="card border-primary position-relative">
+                    <div class="neo-card border-primary position-relative">
                         <div class="card-body">
                             <h6 class="card-title">
                                 {% if match.is_cup_match %}
@@ -65,8 +65,8 @@
 {% endif %}
 
 <!-- All Matches Table -->
-<div class="card">
-    <div class="card-header">
+<div class="neo-card">
+    <div class="neo-header d-flex align-items-center">
         <h5 class="mb-0">Alle Wedstrijden</h5>
     </div>
     <div class="card-body">
@@ -154,7 +154,7 @@ function toggleMatchPlayed(matchId, played) {
 <!-- Statistics -->
 <div class="row mt-4">
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="neo-card text-center">
             <div class="card-body">
                 <h4 class="card-title text-primary">{{ matches|length }}</h4>
                 <p class="card-text">Totaal Wedstrijden</p>
@@ -162,7 +162,7 @@ function toggleMatchPlayed(matchId, played) {
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="neo-card text-center">
             <div class="card-body">
                 <h4 class="card-title text-success">{{ matches|selectattr("is_home")|list|length }}</h4>
                 <p class="card-text">Thuiswedstrijden</p>
@@ -170,7 +170,7 @@ function toggleMatchPlayed(matchId, played) {
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="neo-card text-center">
             <div class="card-body">
                 <h4 class="card-title text-warning">{{ matches|rejectattr("is_home")|list|length }}</h4>
                 <p class="card-text">Uitwedstrijden</p>
@@ -178,7 +178,7 @@ function toggleMatchPlayed(matchId, played) {
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="neo-card text-center">
             <div class="card-body">
                 <h4 class="card-title text-info">{{ matches|selectattr("is_friendly")|list|length }}</h4>
                 <p class="card-text">Vriendschappelijk</p>
@@ -190,8 +190,8 @@ function toggleMatchPlayed(matchId, played) {
 <!-- Quick Actions -->
 <div class="row mt-4">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
+    <div class="neo-card">
+            <div class="neo-header d-flex align-items-center">
                 <h5 class="mb-0">Snelle Acties</h5>
             </div>
             <div class="card-body">

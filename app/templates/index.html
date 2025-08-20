@@ -2,11 +2,6 @@
 
 {% block title %}Sorry voor de overlast{% endblock %}
 {% block content %}
-<style>
-/* Homepage-only: tint upcoming match rows by location */
-.home-upcoming .list-group-item.home { background-color: #d1e7dd; /* bootstrap table-success */ }
-.home-upcoming .list-group-item.away { background-color: #fff3cd; /* bootstrap table-warning */ }
-</style>
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Sorry voor de overlast</h1>
 </div>
@@ -14,7 +9,7 @@
 <!-- Quick Stats (Desktop only) -->
 <div class="row mb-4 d-none d-md-flex">
     <div class="col-md-6 col-lg-3 mb-3">
-        <div class="card card-stat position-relative">
+    <div class="neo-card position-relative">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -31,7 +26,7 @@
     </div>
     
     <div class="col-md-6 col-lg-3 mb-3">
-        <div class="card card-stat position-relative">
+    <div class="neo-card position-relative">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -48,7 +43,7 @@
     </div>
     
     <div class="col-md-6 col-lg-3 mb-3">
-        <div class="card card-stat position-relative">
+    <div class="neo-card position-relative">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -65,7 +60,7 @@
     </div>
     
     <div class="col-md-6 col-lg-3 mb-3">
-        <div class="card card-stat position-relative">
+    <div class="neo-card position-relative">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -86,10 +81,10 @@
 <div class="row d-none d-md-flex">
     <!-- Upcoming Matches LEFT -->
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="neo-card">
+            <div class="neo-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Aankomende Wedstrijden</h5>
-                <a href="{{ url_for('matches.list_matches') }}" class="btn btn-sm btn-outline-primary">
+                <a href="{{ url_for('matches.list_matches') }}" class="btn btn-light btn-sm">
                     Alle Wedstrijden
                 </a>
             </div>
@@ -149,10 +144,10 @@
     </div>
     <!-- Team Members RIGHT -->
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="neo-card">
+            <div class="neo-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Team Leden</h5>
-                <a href="{{ url_for('players.list_players') }}" class="btn btn-sm btn-outline-primary">
+                <a href="{{ url_for('players.list_players') }}" class="btn btn-light btn-sm">
                     Bekijk Alle Spelers
                 </a>
             </div>
@@ -188,10 +183,10 @@
 <!-- Mobile: Next Matches (4) + Compact Lists -->
 <div class="d-md-none">
     <!-- Next Matches Card -->
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="neo-card mb-3">
+        <div class="neo-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Volgende wedstrijden</h5>
-            <a href="{{ url_for('matches.list_matches') }}" class="btn btn-sm btn-outline-primary">Alle</a>
+            <a href="{{ url_for('matches.list_matches') }}" class="btn btn-light btn-sm">Alle</a>
         </div>
         <div class="card-body">
             {% if upcoming_matches and upcoming_matches|length > 0 %}
@@ -253,10 +248,10 @@
     </div>
 
     <!-- Team Leden (compact) -->
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="neo-card mb-3">
+        <div class="neo-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Team Leden</h5>
-            <a href="{{ url_for('players.list_players') }}" class="btn btn-sm btn-outline-primary">Alles</a>
+            <a href="{{ url_for('players.list_players') }}" class="btn btn-light btn-sm">Alles</a>
         </div>
         <div class="card-body p-2">
             {% if players %}
@@ -288,8 +283,8 @@
 <!-- Quick Actions -->
 <div class="row mt-4">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
+    <div class="neo-card">
+            <div class="neo-header">
                 <h5 class="mb-0">Snelle Acties</h5>
             </div>
             <div class="card-body">

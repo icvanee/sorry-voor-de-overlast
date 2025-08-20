@@ -18,7 +18,7 @@
 </div>
 
 <!-- Player Info -->
-<div class="card mb-4">
+<div class="neo-card mb-4">
     <div class="card-body">
         <div class="row">
             <div class="col-md-8">
@@ -54,10 +54,10 @@
 </div>
 
 <!-- Availability Settings -->
-<div class="card">
-    <div class="card-header">
+<div class="neo-card">
+    <div class="neo-header">
         <h5 class="mb-0">Beschikbaarheid per Wedstrijd</h5>
-        <small class="text-muted">
+        <small class="text-light d-block mt-1">
             Klik op de schakelaars om beschikbaarheid in te stellen
             en druk onderaan op <strong><i class="fas fa-save"></i> Alle Wijzigingen Opslaan</strong> om te bewaren.
         </small>
@@ -166,7 +166,7 @@
                 <div id="availabilityMobile" class="d-md-none">
                     {% for match in matches %}
                         {% set availability = availability_data.get(match.id) %}
-                        <div class="card mobile-card mb-2">
+                        <div class="neo-card mobile-card mb-2">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
                                     <div class="pe-2">
@@ -255,7 +255,7 @@
 {% if matches %}
 <div class="row mt-4">
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="neo-card text-center">
             <div class="card-body">
                 <h4 class="card-title text-primary" id="totalMatches">{{ matches|length }}</h4>
                 <p class="card-text">Totaal Wedstrijden</p>
@@ -263,7 +263,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="neo-card text-center">
             <div class="card-body">
                 <h4 class="card-title text-success" id="availableCount">0</h4>
                 <p class="card-text">Beschikbaar</p>
@@ -271,7 +271,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="neo-card text-center">
             <div class="card-body">
                 <h4 class="card-title text-danger" id="unavailableCount">0</h4>
                 <p class="card-text">Niet Beschikbaar</p>
@@ -279,7 +279,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="neo-card text-center">
             <div class="card-body">
                 <h4 class="card-title text-warning" id="unknownCount">{{ matches|length }}</h4>
                 <p class="card-text">Nog Niet Ingesteld</p>

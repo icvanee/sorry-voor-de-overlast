@@ -15,49 +15,62 @@
   </div>
 </div>
 
-<div class="row g-3">
-  <div class="col-md-4">
-    <div class="card card-stat">
-      <div class="card-body">
-        <h6 class="text-muted mb-2">Gepland (actieve planning)</h6>
-        <div class="d-flex align-items-center">
-          <span class="display-6 me-3">{{ sp_stats.matches_planned if sp_stats else 0 }}</span>
-          <div>
-            <span class="badge bg-success me-1">Thuis: {{ sp_stats.home_matches if sp_stats else 0 }}</span>
-            <span class="badge bg-primary">Uit: {{ sp_stats.away_matches if sp_stats else 0 }}</span>
-          </div>
-        </div>
+{# Neo card header + KPI's #}
+{% set planned = sp_stats.matches_planned if sp_stats else 0 %}
+{% set played = sp_stats.matches_played if sp_stats else 0 %}
+{% set home = sp_stats.home_matches if sp_stats else 0 %}
+{% set away = sp_stats.away_matches if sp_stats else 0 %}
+{% set total = availability.total_matches if availability else 0 %}
+{% set avail = availability.available if availability else 0 %}
+{% set avail_pct = (avail / total * 100) | round(0) | int if total > 0 else 0 %}
+
+<div class="neo-card mb-4">
+  <div class="neo-header d-flex align-items-center gap-3">
+    <div class="avatar">{{ player.name[:2]|upper }}</div>
+    <div>
+      <div class="fw-bold fs-5">{{ player.name }}</div>
+      <div class="neo-meta">
+        <span>Sorry voor de Overlast</span>
+        {% if player.role %}<span>Rol: {{ player.role }}</span>{% endif %}
       </div>
     </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card card-stat">
-      <div class="card-body">
-        <h6 class="text-muted mb-2">Gespeeld (actieve planning)</h6>
-        <div class="d-flex align-items-center">
-          <span class="display-6 me-3">{{ sp_stats.matches_played if sp_stats else 0 }}</span>
-          <div class="text-muted">van {{ sp_stats.matches_planned if sp_stats else 0 }} ({{ percent_played }}%)</div>
-        </div>
-      </div>
+    <div class="ms-auto d-none d-md-block">
+      <a href="{{ url_for('players.player_availability', player_id=player.id) }}" class="btn btn-light btn-sm">
+        <i class="fas fa-calendar-check"></i> Beschikbaarheid
+      </a>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card card-stat">
-      <div class="card-body">
-        <h6 class="text-muted mb-2">Beschikbaarheid</h6>
-        {% set total = availability.total_matches if availability else 0 %}
-        {% set avail = availability.available if availability else 0 %}
-        {% set percentage = (avail / total * 100) | round(0) if total > 0 else 0 %}
-        <div class="d-flex align-items-center">
-          <span class="display-6 me-3">{{ percentage }}%</span>
-          <div class="text-muted">{{ avail }}/{{ total }} beschikbaar</div>
-        </div>
+
+  <div class="neo-tabs">
+    <div class="tab">Overzicht</div>
+    <div class="tab active">Stats</div>
+  </div>
+
+  <div class="neo-section">
+    <div class="neo-kpi">
+      <div class="item">
+        <div class="label">Gepland</div>
+        <div class="value">{{ planned }}</div>
+        <div class="text-muted small">Thuis {{ home }} • Uit {{ away }}</div>
       </div>
+      <div class="item">
+        <div class="label">Gespeeld</div>
+        <div class="value">{{ played }} <span class="sub">{{ percent_played }}% van gepland</span></div>
+      </div>
+    </div>
+
+    <div class="neo-progress mt-2" aria-label="Voortgang gespeeld tov gepland" role="progressbar" aria-valuenow="{{ percent_played }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="fill" style="width: {{ percent_played }}%;"></div>
+    </div>
+
+    <div class="neo-meta mt-2">
+      <span>Beschikbaar: {{ avail_pct }}%</span>
+      {% if total > 0 %}<span>{{ avail }}/{{ total }} matches</span>{% endif %}
     </div>
   </div>
 </div>
 
-<div class="card mt-4">
+<div class="neo-card mt-4">
   <div class="card-header">
     <h5 class="mb-0"><i class="fas fa-list"></i> Overzicht</h5>
   </div>

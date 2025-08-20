@@ -96,13 +96,6 @@
                             <div class="list-group-item position-relative {% if match.is_home %}home{% else %}away{% endif %}">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1">
-                                        {% if match.is_friendly %}
-                                            {% if match.match_number and match.match_number.lower().startswith('b') %}
-                                                <span class="badge bg-warning text-dark me-2">Beker</span>
-                                            {% else %}
-                                                <span class="badge bg-info me-2">Vriendschappelijk</span>
-                                            {% endif %}
-                                        {% endif %}
                                         {{ match.home_team }} vs {{ match.away_team }}
                                     </h6>
                                     <small>{{ match.match_date|date_nl }}</small>
@@ -112,6 +105,11 @@
                                         <i class="fas fa-home text-success"></i> Thuiswedstrijd
                                     {% else %}
                                         <i class="fas fa-road text-warning"></i> Uitwedstrijd
+                                    {% endif %}
+                                    {% if match.is_cup_match %}
+                                        <span class="badge bg-warning text-dark ms-2">Beker</span>
+                                    {% else %}
+                                        <span class="badge bg-primary ms-2">Competitie</span>
                                     {% endif %}
                                 </p>
                                 {% if planning %}
@@ -194,10 +192,10 @@
                 <div class="list-group list-group-flush">
                     {% for m in next4 %}
                         {% set planning = planning_by_match.get(m.id, []) %}
-                        <div class="list-group-item position-relative">
+                            <div class="list-group-item position-relative">
                             <div class="d-flex w-100 justify-content-between">
                                 <div class="fw-semibold">
-                                    {{ m.home_team }} vs {{ m.away_team }}
+                                        {{ m.home_team }} vs {{ m.away_team }}
                                 </div>
                                 <small>{{ m.match_date|date_nl }}</small>
                             </div>
@@ -207,9 +205,11 @@
                                 {% else %}
                                     <span class="badge bg-warning text-dark"><i class="fas fa-road"></i> Uit</span>
                                 {% endif %}
-                                {% if m.is_friendly %}
-                                    <span class="badge bg-info ms-1">Vriendschappelijk</span>
-                                {% endif %}
+                                    {% if m.is_cup_match %}
+                                        <span class="badge bg-warning text-dark ms-1">Beker</span>
+                                    {% else %}
+                                        <span class="badge bg-primary ms-1">Competitie</span>
+                                    {% endif %}
                             </div>
                             {% if planning %}
                                 <div class="mt-2 d-flex flex-wrap gap-1">

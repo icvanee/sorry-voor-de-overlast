@@ -22,48 +22,6 @@
     </div>
 </div>
 
-<!-- Upcoming Matches -->
-{% if upcoming_matches %}
-<div class="neo-card mb-4">
-    <div class="neo-header">
-        <h5 class="mb-0">
-            <i class="fas fa-clock"></i> Aankomende Wedstrijden
-        </h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            {% for match in upcoming_matches[:3] %}
-                <div class="col-md-4 mb-3">
-                    <div class="neo-card border-primary position-relative">
-                        <div class="card-body">
-                            <h6 class="card-title">
-                                {% if match.is_cup_match %}
-                                    <span class="badge bg-warning text-dark me-2">Beker</span>
-                                {% endif %}
-                                {{ match.home_team }} vs {{ match.away_team }}
-                            </h6>
-                            <p class="card-text">
-                                <i class="fas fa-calendar"></i> {{ match.match_date|date_nl }}<br>
-                                {% if match.is_home %}
-                                    <i class="fas fa-home text-success"></i> Thuiswedstrijd
-                                {% else %}
-                                    <i class="fas fa-road text-warning"></i> Uitwedstrijd
-                                {% endif %}
-                            </p>
-                            <div class="btn-group btn-group-sm w-100">
-                                <a href="{{ url_for('single_planning.match_detail', match_id=match.id) }}" 
-                                   class="btn btn-outline-success">Planning</a>
-                            </div>
-                            <a href="{{ url_for('single_planning.match_detail', match_id=match.id) }}" class="stretched-link" aria-label="Open wedstrijdplanning"></a>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-{% endif %}
-
 <!-- All Matches Table -->
 <div class="neo-card">
     <div class="neo-header d-flex align-items-center">
@@ -71,10 +29,62 @@
     </div>
     <div class="card-body">
         {% if matches %}
-            {% set _matches = matches %}
-            {% set _planning_by_match = planning_by_match %}
-            {% set _show_actions = true %}
-            {% include 'components/matches_table.html' %}
+            <!-- Desktop/tablet: table view -->
+            <div class="d-none d-md-block">
+                {% set _matches = matches %}
+                {% set _planning_by_match = planning_by_match %}
+                {% set _show_actions = true %}
+                {% include 'components/matches_table.html' %}
+            </div>
+
+            <!-- Mobile: list view like homepage -->
+            <div class="d-md-none home-upcoming">
+                <div class="list-group list-group-flush">
+                    {% for m in matches %}
+                        {% set planning = planning_by_match.get(m.id, []) %}
+                        <div class="list-group-item position-relative {% if m.is_home %}home{% else %}away{% endif %}">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div class="fw-semibold">
+                                    {{ m.home_team }} vs {{ m.away_team }}
+                                </div>
+                                <small>{{ m.match_date|date_nl }}</small>
+                            </div>
+                            <div class="mt-1">
+                                {% if m.is_home %}
+                                    <span class="badge bg-success"><i class="fas fa-home"></i> Thuis</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark"><i class="fas fa-road"></i> Uit</span>
+                                {% endif %}
+                                {% if m.is_cup_match %}
+                                    <span class="badge bg-warning text-dark ms-1">Beker</span>
+                                {% else %}
+                                    <span class="badge bg-primary ms-1">Competitie</span>
+                                {% endif %}
+                            </div>
+                            {% if planning %}
+                                <div class="mt-2 d-flex flex-wrap gap-1">
+                                    {% for p in planning %}
+                                        {% if loop.index0 < 4 %}
+                                            {% set is_me = current_user and (p.player_id == current_user.id) %}
+                                            <span class="badge bg-light text-dark {% if is_me %}badge-me fw-semibold{% endif %}"
+                                                  {% if is_me %}title="Dit ben jij" aria-label="Jouw naam"{% endif %}>{{ p.name if p.name is defined else p.player_name }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if planning|length > 4 %}
+                                        <span class="badge bg-secondary">+{{ planning|length - 4 }}</span>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <small class="text-muted d-block mt-2">Nog geen selectie</small>
+                            {% endif %}
+                            {% if m.location %}
+                                <small class="text-muted d-block mt-1"><i class="fas fa-map-marker-alt"></i> {{ m.location }}</small>
+                            {% endif %}
+                            <a href="{{ url_for('single_planning.match_detail', match_id=m.id) }}" class="stretched-link" aria-label="Open wedstrijdplanning"></a>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
         {% else %}
             <div class="text-center py-4">
                 <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>

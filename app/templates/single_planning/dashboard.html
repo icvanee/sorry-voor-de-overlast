@@ -42,7 +42,7 @@
                                 {% if player is mapping and player.get('is_active', True) and player.get('id') %}
                                     {% set stats = player_stats.get(player['id'], {}) %}
                                     <tr class="clickable-row" data-href="{{ url_for('players.player_stats', player_id=player['id']) }}" style="cursor: pointer;">
-                                        <td><strong><a href="{{ url_for('players.player_stats', player_id=player['id']) }}" class="text-decoration-none">{{ player['name'] }}</a></strong></td>
+                                        <td><strong>{{ player['name'] }}</strong></td>
                                         <td><span class="badge bg-primary">{{ stats.matches_planned or 0 }}</span></td>
                                         <td><span class="badge bg-success">{{ stats.home_matches or 0 }}</span></td>
                                         <td><span class="badge bg-warning">{{ stats.away_matches or 0 }}</span></td>

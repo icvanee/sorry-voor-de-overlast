@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
+    APP_VERSION = '2025.8.20.2'
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'sorry-voor-de-overlast-secret-key-2025'
     
     # Database configuration - PostgreSQL only

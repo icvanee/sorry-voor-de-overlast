@@ -47,4 +47,9 @@ def create_app():
     app.register_blueprint(debug, url_prefix='/debug')
     app.register_blueprint(test, url_prefix='/test')
     
+    # Expose app version in templates
+    @app.context_processor
+    def inject_app_version():
+        return { 'app_version': getattr(Config, 'APP_VERSION', None) or os.environ.get('APP_VERSION') or '2025.8.20.2' }
+
     return app

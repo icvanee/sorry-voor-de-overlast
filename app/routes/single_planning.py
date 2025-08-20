@@ -199,15 +199,26 @@ def match_detail(match_id):
         # Get all active players for potential additions
         all_players = Player.get_all()
         active_players = [p for p in all_players if p.get('is_active', True)]
-        
+
         # Get players not currently in this match
         assigned_player_ids = [p['player_id'] for p in planning]
-        available_players = [p for p in active_players if p['id'] not in assigned_player_ids]
-        
+        unassigned_players = [p for p in active_players if p['id'] not in assigned_player_ids]
+
+        # Split unassigned players by availability for this match
+        available_players = []
+        unavailable_players = []
+        for p in unassigned_players:
+            avail = Player.get_availability(p['id'], match_id)
+            if avail and avail.get('is_available'):
+                available_players.append(p)
+            else:
+                unavailable_players.append(p)
+
         return render_template('single_planning/match_detail.html',
                              match=match,
                              planning=planning,
-                             available_players=available_players)
+                             available_players=available_players,
+                             unavailable_players=unavailable_players)
     
     except Exception as e:
         flash(f'Error loading match details: {str(e)}', 'error')

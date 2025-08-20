@@ -211,12 +211,34 @@ def player_stats(player_id):
     played = sp_stats.get('matches_played', 0) if sp_stats else 0
     percent_played = round((played / planned * 100), 0) if planned > 0 else 0
 
+    # Enrich with partner name for UI card
+    partner_name = None
+    try:
+        pid = player.get('partner_id') if player else None
+        if pid:
+            partner = Player.get_by_id(pid)
+            if partner:
+                partner_name = partner.get('name')
+    except Exception:
+        partner_name = None
+
+    # For availability tab
+    matches = Match.get_all()
+    availability_data = {}
+    for m in matches:
+        av = Player.get_availability(player_id, m['id'])
+        if av:
+            availability_data[m['id']] = av
+
     return render_template('players/stats.html', 
                            player=player, 
                            sp_stats=sp_stats,
                            availability=availability,
                            history=history,
-                           percent_played=int(percent_played))
+                           percent_played=int(percent_played),
+                           partner_name=partner_name,
+                           matches=matches,
+                           availability_data=availability_data)
 
 
 # Password management by captains
